@@ -1,5 +1,8 @@
 .DS_Store
+.env
 .venv/
+.venv-*/
+venv/
 .pytest_cache/
 __pycache__/
 *.pyc
@@ -17,3 +20,4 @@ apps_sdk/web/dist/
 
 
 raw_data/
+downloads/

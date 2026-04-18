@@ -1,0 +1,1899 @@
+
+====================================================================================================
+  NESTFINDER DATA PROFILING REPORT
+  Deep analysis of all raw CSV data sources
+====================================================================================================
+
+  Loading robinreal from robinreal_data_withimages-1776461278845.csv...
+  Loaded 797 rows, 52 columns.
+
+  Loading sred from sred_data_withmontageimages_latlong.csv...
+  Loaded 11,105 rows, 52 columns.
+
+  Loading structured_with_images from structured_data_withimages-1776412361239.csv...
+  Loaded 4,160 rows, 52 columns.
+
+  Loading structured_without_images from structured_data_withoutimages-1776412361239.csv...
+  Loaded 6,757 rows, 52 columns.
+
+====================================================================================================
+  SOURCE: ROBINREAL
+====================================================================================================
+
+--------------------------------------------------------------------------------
+  [robinreal] Basic Info
+--------------------------------------------------------------------------------
+  File:     robinreal_data_withimages-1776461278845.csv
+  Size:     3.48 MB
+  Rows:     797
+  Columns:  52
+  Unique IDs:   797
+  Duplicate IDs: 0
+  Empty IDs:     0
+
+--------------------------------------------------------------------------------
+  [robinreal] Column Null/Empty Rates
+--------------------------------------------------------------------------------
+  Column                                      Populated    Empty %
+  ------                                      ---------    -------
+  id                                                797       0.0%
+  platform_url                                      797       0.0%
+  platform_id                                       797       0.0%
+  title                                             797       0.0%
+  status                                            797       0.0%
+  object_type_text                                  797       0.0%
+  price                                             797       0.0%
+  location_address                                  797       0.0%
+  partner_name                                      797       0.0%
+  remarks                                           797       0.0%
+  orig_data                                         797       0.0%
+  images                                            797       0.0%
+  price_type                                        797       0.0%
+  object_category                                   797       0.0%
+  object_type                                       797       0.0%
+  offer_type                                        797       0.0%
+  number_of_rooms                                   797       0.0%
+  object_description                                797       0.0%
+  rent_net                                          797       0.0%
+  rent_extra                                        797       0.0%
+  prop_balcony                                      797       0.0%
+  prop_elevator                                     797       0.0%
+  prop_parking                                      797       0.0%
+  prop_garage                                       797       0.0%
+  prop_child_friendly                               797       0.0%
+  scrape_source                                     797       0.0%
+  animal_allowed                                    797       0.0%
+  object_zip                                        797       0.0%
+  object_city                                       797       0.0%
+  object_state                                      797       0.0%
+  rent_gross                                        797       0.0%
+  object_street                                     794       0.5%
+  is_new_building                                   708      11.2%
+  geo_lat                                           707      11.3%
+  geo_lng                                           707      11.3%
+  prop_fireplace                                    693      13.0%
+  available_from                                    665      16.6%
+  area                                              569      28.6%
+  last_scraped                                      405      49.2%
+  time_of_creation                                  120      84.9%
+  distance_public_transport                           0     100.0%
+  agency_name                                         0     100.0%
+  agency_phone                                        0     100.0%
+  agency_email                                        0     100.0%
+  floor                                               0     100.0%
+  year_built                                          0     100.0%
+  distance_shop                                       0     100.0%
+  distance_kindergarten                               0     100.0%
+  distance_school_1                                   0     100.0%
+  distance_school_2                                   0     100.0%
+  maybe_temporary                                     0     100.0%
+  supermarket_name                                    0     100.0%
+
+--------------------------------------------------------------------------------
+  [robinreal] Key Numeric Fields
+--------------------------------------------------------------------------------
+
+  Price (raw) (n=773, 97.0% coverage):
+    Min:            20.0
+    P5:            106.0
+    P25:         1,100.0
+    Median:      1,750.0
+    Mean:        1,694.5
+    P75:         2,190.0
+    P95:         3,282.0
+    Max:        11,300.0
+
+  Rent Gross (n=773, 97.0% coverage):
+    Min:            20.0
+    P5:            106.0
+    P25:         1,100.0
+    Median:      1,750.0
+    Mean:        1,694.5
+    P75:         2,190.0
+    P95:         3,282.0
+    Max:        11,300.0
+
+  Rent Net (n=773, 97.0% coverage):
+    Min:            20.0
+    P5:            106.0
+    P25:           970.0
+    Median:      1,505.0
+    Mean:        1,500.0
+    P75:         1,940.0
+    P95:         3,000.0
+    Max:        10,300.0
+
+  Rent Extra (n=664, 83.3% coverage):
+    Min:             2.0
+    P5:             45.7
+    P25:           163.8
+    Median:        220.0
+    Mean:          226.5
+    P75:           290.0
+    P95:           400.0
+    Max:         1,000.0
+
+  Rooms (n=797, 100.0% coverage):
+    Min:             1.0
+    P5:              1.0
+    P25:             1.0
+    Median:          2.5
+    Mean:            2.7
+    P75:             3.5
+    P95:             4.5
+    Max:             7.0
+
+  Area (sqm) (n=565, 70.9% coverage):
+    Min:            10.0
+    P5:             32.4
+    P25:            61.0
+    Median:         79.0
+    Mean:           79.4
+    P75:            95.0
+    P95:           122.8
+    Max:           249.0
+  Floor: no valid values
+  Year Built: no valid values
+  Dist. Public Transport (m): no valid values
+  Dist. Shop (m): no valid values
+  Dist. Kindergarten (m): no valid values
+  Dist. School 1 (m): no valid values
+  Dist. School 2 (m): no valid values
+
+--------------------------------------------------------------------------------
+  [robinreal] Key Categorical Fields
+--------------------------------------------------------------------------------
+
+  Offer Type (797 values, 100.0% coverage, 1 unique):
+    RENT                                               797 (100.0%)
+
+  Object Category (797 values, 100.0% coverage, 6 unique):
+    Wohnung                                            589 ( 73.9%)
+    Parkplatz                                          115 ( 14.4%)
+    Gewerbeobjekt                                       87 ( 10.9%)
+    Wohnnebenraeume                                      3 (  0.4%)
+    Haus                                                 2 (  0.3%)
+    Gastgewerbe                                          1 (  0.1%)
+
+  Object Type (797 values, 100.0% coverage, 14 unique):
+    Wohnung                                            541 ( 67.9%)
+    Tiefgarage                                          78 (  9.8%)
+    Büro                                                42 (  5.3%)
+    Moto Hallenplatz                                    23 (  2.9%)
+    Gewerbe                                             19 (  2.4%)
+    Attikawohnung                                       18 (  2.3%)
+    Lager                                               16 (  2.0%)
+    Maisonette / Duplex                                 14 (  1.8%)
+    Ladenfläche                                          8 (  1.0%)
+    Offener Parkplatz                                    8 (  1.0%)
+    Dachwohnung                                          6 (  0.8%)
+    Einzelgarage                                         5 (  0.6%)
+    Einzelzimmer                                         4 (  0.5%)
+    Möbliertes Wohnobjekt                                4 (  0.5%)
+    Terrassenwohnung                                     2 (  0.3%)
+    ... and 6 more unique values
+
+  Object Type Text (797 values, 100.0% coverage, 14 unique):
+    Wohnung                                            541 ( 67.9%)
+    Tiefgarage                                          78 (  9.8%)
+    Büro                                                42 (  5.3%)
+    Moto Hallenplatz                                    23 (  2.9%)
+    Gewerbe                                             19 (  2.4%)
+    Attikawohnung                                       18 (  2.3%)
+    Lager                                               16 (  2.0%)
+    Maisonette / Duplex                                 14 (  1.8%)
+    Ladenfläche                                          8 (  1.0%)
+    Offener Parkplatz                                    8 (  1.0%)
+    Dachwohnung                                          6 (  0.8%)
+    Einzelgarage                                         5 (  0.6%)
+    Einzelzimmer                                         4 (  0.5%)
+    Möbliertes Wohnobjekt                                4 (  0.5%)
+    Terrassenwohnung                                     2 (  0.3%)
+    Praxis                                               2 (  0.3%)
+    Hobbyraum                                            2 (  0.3%)
+    Einfamilienhaus                                      2 (  0.3%)
+    Restaurant                                           1 (  0.1%)
+    Doppelgarage                                         1 (  0.1%)
+    ... and 1 more unique values
+
+  Scrape Source (797 values, 100.0% coverage, 1 unique):
+    ROBINREAL                                          797 (100.0%)
+
+  Canton (object_state) (797 values, 100.0% coverage, 13 unique):
+    ZH                                                 318 ( 39.9%)
+    BE                                                 184 ( 23.1%)
+    BL                                                  67 (  8.4%)
+    AG                                                  57 (  7.2%)
+    SG                                                  56 (  7.0%)
+    BS                                                  35 (  4.4%)
+    SO                                                  33 (  4.1%)
+    TI                                                  12 (  1.5%)
+    FR                                                   7 (  0.9%)
+    LU                                                   6 (  0.8%)
+    TG                                                   5 (  0.6%)
+    UR                                                   3 (  0.4%)
+    AR                                                   3 (  0.4%)
+    VD                                                   3 (  0.4%)
+    NE                                                   2 (  0.3%)
+    ... and 3 more unique values
+
+  City (object_city) (797 values, 100.0% coverage, 20 unique):
+    Zürich                                             130 ( 16.3%)
+    Burgdorf                                            38 (  4.8%)
+    Basel                                               33 (  4.1%)
+    St. Gallen                                          28 (  3.5%)
+    Dübendorf                                           20 (  2.5%)
+    Thun                                                19 (  2.4%)
+    Bern                                                18 (  2.3%)
+    Biel/Bienne                                         14 (  1.8%)
+    Pratteln                                            14 (  1.8%)
+    Wabern                                              13 (  1.6%)
+    Olten                                               12 (  1.5%)
+    Uitikon Waldegg                                     10 (  1.3%)
+    Münchenbuchsee                                      10 (  1.3%)
+    Langnau i. E.                                       10 (  1.3%)
+    Kaiseraugst                                         10 (  1.3%)
+    Allschwil                                            9 (  1.1%)
+    Adliswil                                             8 (  1.0%)
+    Wallisellen                                          8 (  1.0%)
+    Winterthur                                           7 (  0.9%)
+    Murten                                               7 (  0.9%)
+    ... and 151 more unique values
+
+  Price Type (797 values, 100.0% coverage, 1 unique):
+    3                                                  797 (100.0%)
+
+  Status (797 values, 100.0% coverage, 2 unique):
+    INACTIVE                                           515 ( 64.6%)
+    ACTIVE                                             282 ( 35.4%)
+
+--------------------------------------------------------------------------------
+  [robinreal] Boolean / Feature Flag Fields
+--------------------------------------------------------------------------------
+  Field                              True    False    Empty   Coverage
+  -----                              ----    -----    -----   --------
+  prop_balcony                        352      445        0     100.0%
+  prop_elevator                       266      531        0     100.0%
+  prop_parking                         78      719        0     100.0%
+  prop_garage                         106      691        0     100.0%
+  prop_fireplace                       22      671      104      87.0%
+  prop_child_friendly                  17      780        0     100.0%
+  animal_allowed                      288      509        0     100.0%
+  maybe_temporary                       0        0      797       0.0%
+  is_new_building                      10      698       89      88.8%
+
+--------------------------------------------------------------------------------
+  [robinreal] Geolocation Coverage
+--------------------------------------------------------------------------------
+  Rows with valid lat+lng: 707 / 797 (88.7%)
+  Latitude  range: [45.8719, 47.6594]
+  Longitude range: [6.1384, 9.6291]
+  Within Switzerland bounds: 707 (100.0%)
+
+--------------------------------------------------------------------------------
+  [robinreal] Text Field Coverage & Length
+--------------------------------------------------------------------------------
+
+  title (797 populated, 100.0% coverage):
+    Avg length:          45 chars
+    Median length:       45 chars
+    Max length:          78 chars
+    Min length:           7 chars
+
+  object_description (797 populated, 100.0% coverage):
+    Avg length:        1062 chars
+    Median length:      975 chars
+    Max length:       4,503 chars
+    Min length:           4 chars
+
+  remarks (797 populated, 100.0% coverage):
+    Avg length:        1062 chars
+    Median length:      975 chars
+    Max length:       4,503 chars
+    Min length:           4 chars
+
+--------------------------------------------------------------------------------
+  [robinreal] JSON Field Analysis
+--------------------------------------------------------------------------------
+
+  JSON field: orig_data
+    Populated: 797 / 797 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      source                                    200/200 (100%)
+      listingId                                 200/200 (100%)
+      organizationId                            200/200 (100%)
+      building_type                             200/200 (100%)
+      kategorietype                             200/200 (100%)
+      object_type                               200/200 (100%)
+      offer_type                                200/200 (100%)
+      type                                      200/200 (100%)
+      state                                     200/200 (100%)
+      price_unit                                200/200 (100%)
+
+  JSON field: images
+    Populated: 797 / 797 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      images                                    200/200 (100%)
+    Nested keys (sampled):
+      images[*].url                                       200/200 (100%)
+      images[*].filename                                  200/200 (100%)
+
+  JSON field: location_address
+    Populated: 797 / 797 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      PostalCode                                200/200 (100%)
+      City                                      200/200 (100%)
+      Street                                    200/200 (100%)
+      StreetNumber                              200/200 (100%)
+      canton                                    200/200 (100%)
+      Country                                   200/200 (100%)
+
+--------------------------------------------------------------------------------
+  [robinreal] Image Availability
+--------------------------------------------------------------------------------
+  Sample size: 500
+  With at least 1 image: 498 (99.6%)
+  Avg images per listing:    6.9
+  Median images per listing: 7
+  Max images per listing:    13
+
+--------------------------------------------------------------------------------
+  [robinreal] Breakdown by scrape_source
+--------------------------------------------------------------------------------
+  ROBINREAL                                     797 (100.0%)
+
+====================================================================================================
+  SOURCE: SRED
+====================================================================================================
+
+--------------------------------------------------------------------------------
+  [sred] Basic Info
+--------------------------------------------------------------------------------
+  File:     sred_data_withmontageimages_latlong.csv
+  Size:     33.36 MB
+  Rows:     11,105
+  Columns:  52
+  Unique IDs:   11,105
+  Duplicate IDs: 0
+  Empty IDs:     0
+
+--------------------------------------------------------------------------------
+  [sred] Column Null/Empty Rates
+--------------------------------------------------------------------------------
+  Column                                      Populated    Empty %
+  ------                                      ---------    -------
+  id                                             11,105       0.0%
+  platform_id                                    11,105       0.0%
+  title                                          11,105       0.0%
+  price                                          11,105       0.0%
+  location_address                               11,105       0.0%
+  partner_name                                   11,105       0.0%
+  orig_data                                      11,105       0.0%
+  images                                         11,105       0.0%
+  area                                           11,105       0.0%
+  offer_type                                     11,105       0.0%
+  number_of_rooms                                11,105       0.0%
+  geo_lat                                        11,105       0.0%
+  geo_lng                                        11,105       0.0%
+  scrape_source                                  11,105       0.0%
+  rent_gross                                     11,105       0.0%
+  remarks                                        11,067       0.3%
+  object_description                             11,067       0.3%
+  platform_url                                        0     100.0%
+  status                                              0     100.0%
+  time_of_creation                                    0     100.0%
+  last_scraped                                        0     100.0%
+  object_type_text                                    0     100.0%
+  price_type                                          0     100.0%
+  object_category                                     0     100.0%
+  object_type                                         0     100.0%
+  available_from                                      0     100.0%
+  rent_net                                            0     100.0%
+  rent_extra                                          0     100.0%
+  distance_public_transport                           0     100.0%
+  agency_name                                         0     100.0%
+  agency_phone                                        0     100.0%
+  agency_email                                        0     100.0%
+  floor                                               0     100.0%
+  year_built                                          0     100.0%
+  prop_balcony                                        0     100.0%
+  prop_elevator                                       0     100.0%
+  prop_parking                                        0     100.0%
+  prop_garage                                         0     100.0%
+  prop_fireplace                                      0     100.0%
+  prop_child_friendly                                 0     100.0%
+  distance_shop                                       0     100.0%
+  distance_kindergarten                               0     100.0%
+  distance_school_1                                   0     100.0%
+  distance_school_2                                   0     100.0%
+  animal_allowed                                      0     100.0%
+  object_street                                       0     100.0%
+  object_zip                                          0     100.0%
+  object_city                                         0     100.0%
+  object_state                                        0     100.0%
+  maybe_temporary                                     0     100.0%
+  is_new_building                                     0     100.0%
+  supermarket_name                                    0     100.0%
+
+--------------------------------------------------------------------------------
+  [sred] Key Numeric Fields
+--------------------------------------------------------------------------------
+
+  Price (raw) (n=11,105, 100.0% coverage):
+    Min:           495.0
+    P5:          1,070.0
+    P25:         1,385.0
+    Median:      1,620.0
+    Mean:        1,729.8
+    P75:         1,935.0
+    P95:         2,700.0
+    Max:         7,400.0
+
+  Rent Gross (n=11,105, 100.0% coverage):
+    Min:           495.0
+    P5:          1,070.0
+    P25:         1,385.0
+    Median:      1,620.0
+    Mean:        1,729.8
+    P75:         1,935.0
+    P95:         2,700.0
+    Max:         7,400.0
+  Rent Net: no valid values
+  Rent Extra: no valid values
+
+  Rooms (n=11,105, 100.0% coverage):
+    Min:             1.5
+    P5:              2.0
+    P25:             3.0
+    Median:          3.5
+    Mean:            3.6
+    P75:             4.5
+    P95:             5.0
+    Max:            14.0
+
+  Area (sqm) (n=11,105, 100.0% coverage):
+    Min:            19.0
+    P5:             48.0
+    P25:            68.0
+    Median:         83.0
+    Mean:           86.3
+    P75:           100.0
+    P95:           133.0
+    Max:         1,502.0
+  Floor: no valid values
+  Year Built: no valid values
+  Dist. Public Transport (m): no valid values
+  Dist. Shop (m): no valid values
+  Dist. Kindergarten (m): no valid values
+  Dist. School 1 (m): no valid values
+  Dist. School 2 (m): no valid values
+
+--------------------------------------------------------------------------------
+  [sred] Key Categorical Fields
+--------------------------------------------------------------------------------
+
+  Offer Type (11,105 values, 100.0% coverage, 1 unique):
+    RENT                                            11,105 (100.0%)
+
+  Object Category: all empty
+
+  Object Type: all empty
+
+  Object Type Text: all empty
+
+  Scrape Source (11,105 values, 100.0% coverage, 1 unique):
+    SRED                                            11,105 (100.0%)
+
+  Canton (object_state): all empty
+
+  City (object_city): all empty
+
+  Price Type: all empty
+
+  Status: all empty
+
+--------------------------------------------------------------------------------
+  [sred] Boolean / Feature Flag Fields
+--------------------------------------------------------------------------------
+  Field                              True    False    Empty   Coverage
+  -----                              ----    -----    -----   --------
+  prop_balcony                          0        0   11,105       0.0%
+  prop_elevator                         0        0   11,105       0.0%
+  prop_parking                          0        0   11,105       0.0%
+  prop_garage                           0        0   11,105       0.0%
+  prop_fireplace                        0        0   11,105       0.0%
+  prop_child_friendly                   0        0   11,105       0.0%
+  animal_allowed                        0        0   11,105       0.0%
+  maybe_temporary                       0        0   11,105       0.0%
+  is_new_building                       0        0   11,105       0.0%
+
+--------------------------------------------------------------------------------
+  [sred] Geolocation Coverage
+--------------------------------------------------------------------------------
+  Rows with valid lat+lng: 11,105 / 11,105 (100.0%)
+  Latitude  range: [45.8323, 47.7938]
+  Longitude range: [6.0431, 9.8691]
+  Within Switzerland bounds: 11,105 (100.0%)
+
+--------------------------------------------------------------------------------
+  [sred] Text Field Coverage & Length
+--------------------------------------------------------------------------------
+
+  title (11,105 populated, 100.0% coverage):
+    Avg length:          41 chars
+    Median length:       40 chars
+    Max length:         134 chars
+    Min length:           6 chars
+
+  object_description (11,067 populated, 99.7% coverage):
+    Avg length:         829 chars
+    Median length:      734 chars
+    Max length:       5,686 chars
+    Min length:          19 chars
+
+  remarks (11,067 populated, 99.7% coverage):
+    Avg length:         829 chars
+    Median length:      734 chars
+    Max length:       5,686 chars
+    Min length:          19 chars
+
+--------------------------------------------------------------------------------
+  [sred] JSON Field Analysis
+--------------------------------------------------------------------------------
+
+  JSON field: orig_data
+    Populated: 11,105 / 11,105 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      source                                    200/200 (100%)
+      split                                     200/200 (100%)
+      listing_id                                200/200 (100%)
+      image_url                                 200/200 (100%)
+      raw_row                                   200/200 (100%)
+    Nested keys (sampled):
+      raw_row.listing_id                                  200/200 (100%)
+      raw_row.living_space                                200/200 (100%)
+      raw_row.rooms                                       200/200 (100%)
+      raw_row.lat                                         200/200 (100%)
+      raw_row.lon                                         200/200 (100%)
+      raw_row.price                                       200/200 (100%)
+      raw_row.header                                      200/200 (100%)
+      raw_row.ad_description                              200/200 (100%)
+
+  JSON field: images
+    Populated: 11,105 / 11,105 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      images                                    200/200 (100%)
+    Nested keys (sampled):
+      images[*].url                                       200/200 (100%)
+      images[*].filename                                  200/200 (100%)
+
+  JSON field: location_address
+    Populated: 11,105 / 11,105 (100.0%)
+    Successfully parsed in sample: 200/200
+
+--------------------------------------------------------------------------------
+  [sred] Image Availability
+--------------------------------------------------------------------------------
+  Sample size: 500
+  With at least 1 image: 500 (100.0%)
+  Avg images per listing:    1.0
+  Median images per listing: 1
+  Max images per listing:    1
+
+--------------------------------------------------------------------------------
+  [sred] Breakdown by scrape_source
+--------------------------------------------------------------------------------
+  SRED                                       11,105 (100.0%)
+
+====================================================================================================
+  SOURCE: STRUCTURED_WITH_IMAGES
+====================================================================================================
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Basic Info
+--------------------------------------------------------------------------------
+  File:     structured_data_withimages-1776412361239.csv
+  Size:     46.16 MB
+  Rows:     4,160
+  Columns:  52
+  Unique IDs:   4,160
+  Duplicate IDs: 0
+  Empty IDs:     0
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Column Null/Empty Rates
+--------------------------------------------------------------------------------
+  Column                                      Populated    Empty %
+  ------                                      ---------    -------
+  id                                              4,160       0.0%
+  platform_url                                    4,160       0.0%
+  platform_id                                     4,160       0.0%
+  title                                           4,160       0.0%
+  status                                          4,160       0.0%
+  time_of_creation                                4,160       0.0%
+  last_scraped                                    4,160       0.0%
+  object_type_text                                4,160       0.0%
+  price                                           4,160       0.0%
+  location_address                                4,160       0.0%
+  partner_name                                    4,160       0.0%
+  remarks                                         4,160       0.0%
+  orig_data                                       4,160       0.0%
+  images                                          4,160       0.0%
+  price_type                                      4,160       0.0%
+  area                                            4,160       0.0%
+  object_category                                 4,160       0.0%
+  object_description                              4,160       0.0%
+  geo_lat                                         4,160       0.0%
+  geo_lng                                         4,160       0.0%
+  scrape_source                                   4,160       0.0%
+  offer_type                                      4,138       0.5%
+  rent_net                                        4,138       0.5%
+  object_city                                     3,219      22.6%
+  object_zip                                      3,211      22.8%
+  object_state                                    3,200      23.1%
+  number_of_rooms                                 3,078      26.0%
+  object_street                                   2,628      36.8%
+  available_from                                  2,574      38.1%
+  floor                                           2,088      49.8%
+  rent_extra                                      1,900      54.3%
+  year_built                                      1,217      70.7%
+  prop_child_friendly                               452      89.1%
+  distance_public_transport                         343      91.8%
+  distance_shop                                     302      92.7%
+  distance_school_1                                 231      94.4%
+  distance_kindergarten                             188      95.5%
+  distance_school_2                                 171      95.9%
+  object_type                                         0     100.0%
+  agency_name                                         0     100.0%
+  agency_phone                                        0     100.0%
+  agency_email                                        0     100.0%
+  prop_balcony                                        0     100.0%
+  prop_elevator                                       0     100.0%
+  prop_parking                                        0     100.0%
+  prop_garage                                         0     100.0%
+  prop_fireplace                                      0     100.0%
+  animal_allowed                                      0     100.0%
+  rent_gross                                          0     100.0%
+  maybe_temporary                                     0     100.0%
+  is_new_building                                     0     100.0%
+  supermarket_name                                    0     100.0%
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Key Numeric Fields
+--------------------------------------------------------------------------------
+
+  Price (raw) (n=3,928, 94.4% coverage):
+    Min:             1.0
+    P5:            120.0
+    P25:         1,050.0
+    Median:      1,670.0
+    Mean:        2,164.0
+    P75:         2,336.2
+    P95:         4,863.0
+    Max:       298,000.0
+  Rent Gross: no valid values
+
+  Rent Net (n=3,913, 94.1% coverage):
+    Min:             1.0
+    P5:            120.0
+    P25:           990.0
+    Median:      1,540.0
+    Mean:        2,046.1
+    P75:         2,182.0
+    P95:         4,600.0
+    Max:       298,000.0
+
+  Rent Extra (n=1,900, 45.7% coverage):
+    Min:             1.0
+    P5:             50.0
+    P25:           150.0
+    Median:        200.0
+    Mean:          231.6
+    P75:           270.0
+    P95:           400.0
+    Max:         4,250.0
+
+  Rooms (n=3,078, 74.0% coverage):
+    Min:             1.0
+    P5:              1.0
+    P25:             2.5
+    Median:          3.5
+    Mean:            3.3
+    P75:             4.0
+    P95:             5.5
+    Max:            35.0
+
+  Area (sqm) (n=2,924, 70.3% coverage):
+    Min:             1.0
+    P5:             23.0
+    P25:            58.0
+    Median:         80.0
+    Mean:          131.2
+    P75:           111.0
+    P95:           333.4
+    Max:        12,500.0
+
+  Floor (n=2,088, 50.2% coverage):
+    Min:             1.0
+    P5:              1.0
+    P25:             1.0
+    Median:          2.0
+    Mean:            2.5
+    P75:             3.0
+    P95:             5.0
+    Max:            30.0
+
+  Year Built (n=1,217, 29.3% coverage):
+    Min:         1,555.0
+    P5:          1,918.0
+    P25:         1,970.0
+    Median:      1,997.0
+    Mean:        1,988.7
+    P75:         2,018.0
+    P95:         2,026.0
+    Max:         2,028.0
+
+  Dist. Public Transport (m) (n=343, 8.2% coverage):
+    Min:             1.0
+    P5:              3.0
+    P25:            50.0
+    Median:        138.0
+    Mean:          201.5
+    P75:           300.0
+    P95:           600.0
+    Max:         1,500.0
+
+  Dist. Shop (m) (n=302, 7.3% coverage):
+    Min:             1.0
+    P5:             20.0
+    P25:           107.8
+    Median:        300.0
+    Mean:          456.5
+    P75:           500.0
+    P95:         1,465.0
+    Max:         3,750.0
+
+  Dist. Kindergarten (m) (n=188, 4.5% coverage):
+    Min:             1.0
+    P5:             50.0
+    P25:           230.0
+    Median:        420.0
+    Mean:          521.6
+    P75:           600.0
+    P95:         1,000.0
+    Max:         5,000.0
+
+  Dist. School 1 (m) (n=231, 5.6% coverage):
+    Min:             1.0
+    P5:            100.0
+    P25:           300.0
+    Median:        500.0
+    Mean:          662.5
+    P75:           800.0
+    P95:         1,500.0
+    Max:         7,900.0
+
+  Dist. School 2 (m) (n=171, 4.1% coverage):
+    Min:            20.0
+    P5:            200.0
+    P25:           490.0
+    Median:        800.0
+    Mean:        1,172.8
+    P75:         1,250.0
+    P95:         3,800.0
+    Max:         9,000.0
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Key Categorical Fields
+--------------------------------------------------------------------------------
+
+  Offer Type (4,138 values, 99.5% coverage, 1 unique):
+    RENT                                             4,138 (100.0%)
+
+  Object Category (4,160 values, 100.0% coverage, 21 unique):
+    Wohnung                                          2,407 ( 57.9%)
+    Gewerbeobjekt                                      714 ( 17.2%)
+    Möblierte Wohnung                                  147 (  3.5%)
+    Parkplatz                                          129 (  3.1%)
+    Parkplatz, Garage                                  125 (  3.0%)
+    Tiefgarage                                         110 (  2.6%)
+    Haus                                               108 (  2.6%)
+    Dachwohnung                                         84 (  2.0%)
+    Einzelzimmer                                        64 (  1.5%)
+    Maisonette                                          58 (  1.4%)
+    Bastelraum                                          52 (  1.2%)
+    WG-Zimmer                                           30 (  0.7%)
+    Studio                                              30 (  0.7%)
+    Attika                                              29 (  0.7%)
+    Einzelgarage                                        18 (  0.4%)
+    ... and 10 more unique values
+
+  Object Type: all empty
+
+  Object Type Text (4,160 values, 100.0% coverage, 22 unique):
+    Wohnung                                          2,383 ( 57.3%)
+    Gewerbeobjekt                                      714 ( 17.2%)
+    Möblierte Wohnung                                  189 (  4.5%)
+    Parkplatz                                          129 (  3.1%)
+    Parkplatz, Garage                                  125 (  3.0%)
+    Tiefgarage                                         110 (  2.6%)
+    Haus                                               108 (  2.6%)
+    Dachwohnung                                         84 (  2.0%)
+    Einzelzimmer                                        64 (  1.5%)
+    Maisonette                                          58 (  1.4%)
+    Bastelraum                                          52 (  1.2%)
+    Studio                                              30 (  0.7%)
+    Attika                                              29 (  0.7%)
+    Einzelgarage                                        18 (  0.4%)
+    WG-Zimmer                                           14 (  0.3%)
+    Loft                                                12 (  0.3%)
+    Villa                                               11 (  0.3%)
+    Doppeleinfamilienhaus                               10 (  0.2%)
+    Diverses                                             9 (  0.2%)
+    Reihenhaus                                           6 (  0.1%)
+    ... and 4 more unique values
+
+  Scrape Source (4,160 values, 100.0% coverage, 1 unique):
+    COMPARIS                                         4,160 (100.0%)
+
+  Canton (object_state) (3,200 values, 76.9% coverage, 25 unique):
+    zh                                                 578 ( 18.1%)
+    vd                                                 441 ( 13.8%)
+    ge                                                 312 (  9.8%)
+    be                                                 305 (  9.5%)
+    ag                                                 178 (  5.6%)
+    ti                                                 176 (  5.5%)
+    fr                                                 150 (  4.7%)
+    vs                                                 148 (  4.6%)
+    sg                                                 146 (  4.6%)
+    ne                                                 105 (  3.3%)
+    so                                                 100 (  3.1%)
+    bs                                                  90 (  2.8%)
+    bl                                                  86 (  2.7%)
+    tg                                                  85 (  2.7%)
+    lu                                                  83 (  2.6%)
+    ... and 11 more unique values
+
+  City (object_city) (3,219 values, 77.4% coverage, 33 unique):
+    Zürich                                             214 (  6.6%)
+    Genève                                             153 (  4.8%)
+    Lausanne                                           104 (  3.2%)
+    Basel                                               84 (  2.6%)
+    Bern                                                67 (  2.1%)
+    Winterthur                                          57 (  1.8%)
+    St. Gallen                                          35 (  1.1%)
+    Fribourg                                            33 (  1.0%)
+    Lugano                                              33 (  1.0%)
+    La Chaux-de-Fonds                                   32 (  1.0%)
+    Luzern                                              27 (  0.8%)
+    Zurich                                              24 (  0.7%)
+    Anzère                                              23 (  0.7%)
+    Olten                                               21 (  0.7%)
+    Sion                                                21 (  0.7%)
+    Neuchâtel                                           20 (  0.6%)
+    Yverdon-les-Bains                                   20 (  0.6%)
+    Solothurn                                           19 (  0.6%)
+    Meyrin                                              19 (  0.6%)
+    Delémont                                            18 (  0.6%)
+    ... and 951 more unique values
+
+  Price Type (4,160 values, 100.0% coverage, 5 unique):
+    3                                                3,997 ( 96.1%)
+    6                                                  141 (  3.4%)
+    2                                                   14 (  0.3%)
+    5                                                    5 (  0.1%)
+    4                                                    3 (  0.1%)
+
+  Status (4,160 values, 100.0% coverage, 3 unique):
+    INACTIVE                                         2,407 ( 57.9%)
+    ACTIVE                                           1,744 ( 41.9%)
+    DELETED                                              9 (  0.2%)
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Boolean / Feature Flag Fields
+--------------------------------------------------------------------------------
+  Field                              True    False    Empty   Coverage
+  -----                              ----    -----    -----   --------
+  prop_balcony                          0        0    4,160       0.0%
+  prop_elevator                         0        0    4,160       0.0%
+  prop_parking                          0        0    4,160       0.0%
+  prop_garage                           0        0    4,160       0.0%
+  prop_fireplace                        0        0    4,160       0.0%
+  prop_child_friendly                 452        0    3,708      10.9%
+  animal_allowed                        0        0    4,160       0.0%
+  maybe_temporary                       0        0    4,160       0.0%
+  is_new_building                       0        0    4,160       0.0%
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Geolocation Coverage
+--------------------------------------------------------------------------------
+  Rows with valid lat+lng: 4,160 / 4,160 (100.0%)
+  Latitude  range: [0.0000, 47.7860]
+  Longitude range: [0.0000, 9.8176]
+  Within Switzerland bounds: 4,152 (99.8%)
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Text Field Coverage & Length
+--------------------------------------------------------------------------------
+
+  title (4,160 populated, 100.0% coverage):
+    Avg length:          44 chars
+    Median length:       43 chars
+    Max length:         388 chars
+    Min length:           4 chars
+
+  object_description (4,160 populated, 100.0% coverage):
+    Avg length:        1005 chars
+    Median length:      885 chars
+    Max length:       6,942 chars
+    Min length:           7 chars
+
+  remarks (4,160 populated, 100.0% coverage):
+    Avg length:        1005 chars
+    Median length:      885 chars
+    Max length:       6,942 chars
+    Min length:           7 chars
+
+--------------------------------------------------------------------------------
+  [structured_with_images] JSON Field Analysis
+--------------------------------------------------------------------------------
+
+  JSON field: orig_data
+    Populated: 4,160 / 4,160 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      AdId                                      200/200 (100%)
+      AdStatus                                  200/200 (100%)
+      DealType                                  200/200 (100%)
+      Site                                      200/200 (100%)
+      Title                                     200/200 (100%)
+      DisplayTitle                              200/200 (100%)
+      NumRooms                                  200/200 (100%)
+      AddressSegments                           200/200 (100%)
+      PropertyTypeId                            200/200 (100%)
+      PropertyTypeText                          200/200 (100%)
+      ComparisPoints                            200/200 (100%)
+      Price                                     200/200 (100%)
+      PriceText                                 200/200 (100%)
+      PriceType                                 200/200 (100%)
+      PriceTypeText                             200/200 (100%)
+      Area                                      200/200 (100%)
+      ImageUrls                                 200/200 (100%)
+      FoundForTheFirstTime                      200/200 (100%)
+      SharingUrl                                200/200 (100%)
+      Remarks                                   200/200 (100%)
+      MapData                                   200/200 (100%)
+      TargetPrice                               200/200 (100%)
+      ShowPremiumListingPromotion               200/200 (100%)
+      PremiumListingBookingUrl                  200/200 (100%)
+      DocumentLinks                             200/200 (100%)
+    Nested keys (sampled):
+      AddressSegments.PostalCode                          200/200 (100%)
+      AddressSegments.City                                200/200 (100%)
+      AddressSegments.Street                              200/200 (100%)
+      AddressSegments.StreetNumber                        200/200 (100%)
+      MapData.ShowStreetView                              200/200 (100%)
+      MapData.ShowMap                                     200/200 (100%)
+      MapData.GeoPosLat                                   200/200 (100%)
+      MapData.GeoPosLng                                   200/200 (100%)
+      MapData.MarkerTooltipText                           200/200 (100%)
+      MapData.ZoomLevel                                   200/200 (100%)
+      MapData.ShowMarker                                  200/200 (100%)
+      MapData.PlanningProjectsUrl                         200/200 (100%)
+      MapData.StreetViewUrl                               200/200 (100%)
+      MainData[*].Key                                     200/200 (100%)
+      MainData[*].Value                                   200/200 (100%)
+      MainData[*].Title                                   200/200 (100%)
+      Services[*].ServiceLinkType                         200/200 (100%)
+      Services[*].OverTitle                               200/200 (100%)
+      Services[*].Title                                   200/200 (100%)
+      Services[*].Url                                     200/200 (100%)
+      Services[*].ImpressionTrackingUrl                   200/200 (100%)
+      Services[*].External                                200/200 (100%)
+      Services[*].Logo                                    200/200 (100%)
+      Services[*].DisclaimerText                          200/200 (100%)
+      Services[*].DisclaimerLogo                          200/200 (100%)
+      Services[*].LogoAltText                             200/200 (100%)
+      PriceInformation[*].Key                             191/200 (96%)
+      PriceInformation[*].Value                           191/200 (96%)
+      PriceInformation[*].Title                           191/200 (96%)
+      Features[*].Key                                     127/200 (64%)
+
+  JSON field: images
+    Populated: 4,160 / 4,160 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      images                                    200/200 (100%)
+    Nested keys (sampled):
+      images[*].url                                       191/200 (96%)
+      images[*].filename                                  191/200 (96%)
+
+  JSON field: location_address
+    Populated: 4,160 / 4,160 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      PostalCode                                200/200 (100%)
+      City                                      200/200 (100%)
+      Street                                    200/200 (100%)
+      StreetNumber                              200/200 (100%)
+      canton                                     53/200 (26%)
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Image Availability
+--------------------------------------------------------------------------------
+  Sample size: 500
+  With at least 1 image: 481 (96.2%)
+  Avg images per listing:    6.7
+  Median images per listing: 7
+  Max images per listing:    15
+
+--------------------------------------------------------------------------------
+  [structured_with_images] Breakdown by scrape_source
+--------------------------------------------------------------------------------
+  COMPARIS                                    4,160 (100.0%)
+
+====================================================================================================
+  SOURCE: STRUCTURED_WITHOUT_IMAGES
+====================================================================================================
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Basic Info
+--------------------------------------------------------------------------------
+  File:     structured_data_withoutimages-1776412361239.csv
+  Size:     67.35 MB
+  Rows:     6,757
+  Columns:  52
+  Unique IDs:   6,757
+  Duplicate IDs: 0
+  Empty IDs:     0
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Column Null/Empty Rates
+--------------------------------------------------------------------------------
+  Column                                      Populated    Empty %
+  ------                                      ---------    -------
+  id                                              6,757       0.0%
+  platform_url                                    6,757       0.0%
+  platform_id                                     6,757       0.0%
+  title                                           6,757       0.0%
+  status                                          6,757       0.0%
+  time_of_creation                                6,757       0.0%
+  last_scraped                                    6,757       0.0%
+  object_type_text                                6,757       0.0%
+  price                                           6,757       0.0%
+  location_address                                6,757       0.0%
+  partner_name                                    6,757       0.0%
+  orig_data                                       6,757       0.0%
+  images                                          6,757       0.0%
+  price_type                                      6,757       0.0%
+  area                                            6,757       0.0%
+  scrape_source                                   6,757       0.0%
+  remarks                                         6,753       0.1%
+  object_category                                 5,798      14.2%
+  object_description                              5,798      14.2%
+  offer_type                                      5,746      15.0%
+  rent_net                                        5,743      15.0%
+  geo_lat                                         5,210      22.9%
+  geo_lng                                         5,210      22.9%
+  number_of_rooms                                 4,850      28.2%
+  available_from                                  3,629      46.3%
+  rent_extra                                      2,079      69.2%
+  floor                                           1,040      84.6%
+  year_built                                        540      92.0%
+  prop_child_friendly                               206      97.0%
+  distance_public_transport                         171      97.5%
+  distance_shop                                     151      97.8%
+  distance_school_1                                 123      98.2%
+  distance_kindergarten                              99      98.5%
+  distance_school_2                                  93      98.6%
+  object_zip                                         24      99.6%
+  object_city                                        24      99.6%
+  object_state                                       24      99.6%
+  object_street                                      20      99.7%
+  object_type                                         0     100.0%
+  agency_name                                         0     100.0%
+  agency_phone                                        0     100.0%
+  agency_email                                        0     100.0%
+  prop_balcony                                        0     100.0%
+  prop_elevator                                       0     100.0%
+  prop_parking                                        0     100.0%
+  prop_garage                                         0     100.0%
+  prop_fireplace                                      0     100.0%
+  animal_allowed                                      0     100.0%
+  rent_gross                                          0     100.0%
+  maybe_temporary                                     0     100.0%
+  is_new_building                                     0     100.0%
+  supermarket_name                                    0     100.0%
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Key Numeric Fields
+--------------------------------------------------------------------------------
+
+  Price (raw) (n=6,354, 94.0% coverage):
+    Min:             1.0
+    P5:            100.0
+    P25:         1,000.0
+    Median:      1,690.0
+    Mean:        2,731.4
+    P75:         2,490.0
+    P95:         6,654.5
+    Max:     1,111,111.0
+  Rent Gross: no valid values
+
+  Rent Net (n=5,402, 79.9% coverage):
+    Min:             1.0
+    P5:            100.0
+    P25:           900.0
+    Median:      1,560.0
+    Mean:        2,697.3
+    P75:         2,379.8
+    P95:         6,672.5
+    Max:     1,111,111.0
+
+  Rent Extra (n=2,079, 30.8% coverage):
+    Min:             1.0
+    P5:             60.0
+    P25:           150.0
+    Median:        200.0
+    Mean:          222.8
+    P75:           265.0
+    P95:           400.0
+    Max:         5,333.0
+
+  Rooms (n=3,891, 57.6% coverage):
+    Min:             1.0
+    P5:              1.0
+    P25:             2.5
+    Median:          3.5
+    Mean:            3.4
+    P75:             4.5
+    P95:             5.5
+    Max:            45.0
+
+  Area (sqm) (n=3,983, 58.9% coverage):
+    Min:             1.0
+    P5:             24.0
+    P25:            58.0
+    Median:         80.0
+    Mean:          125.3
+    P75:           113.0
+    P95:           285.9
+    Max:         6,940.0
+
+  Floor (n=1,040, 15.4% coverage):
+    Min:             1.0
+    P5:              1.0
+    P25:             1.0
+    Median:          2.0
+    Mean:            2.4
+    P75:             3.0
+    P95:             5.0
+    Max:            30.0
+
+  Year Built (n=540, 8.0% coverage):
+    Min:         1,600.0
+    P5:          1,903.0
+    P25:         1,970.0
+    Median:      2,002.0
+    Mean:        1,987.8
+    P75:         2,021.0
+    P95:         2,025.0
+    Max:         2,027.0
+
+  Dist. Public Transport (m) (n=171, 2.5% coverage):
+    Min:             1.0
+    P5:              2.0
+    P25:            50.0
+    Median:        150.0
+    Mean:          198.3
+    P75:           255.0
+    P95:           500.0
+    Max:         2,800.0
+
+  Dist. Shop (m) (n=151, 2.2% coverage):
+    Min:             1.0
+    P5:             14.5
+    P25:           100.0
+    Median:        301.0
+    Mean:          464.8
+    P75:           566.0
+    P95:         1,650.0
+    Max:         2,500.0
+
+  Dist. Kindergarten (m) (n=99, 1.5% coverage):
+    Min:             1.0
+    P5:             20.0
+    P25:           262.5
+    Median:        500.0
+    Mean:          562.1
+    P75:           650.0
+    P95:         1,500.0
+    Max:         4,900.0
+
+  Dist. School 1 (m) (n=123, 1.8% coverage):
+    Min:             1.0
+    P5:             80.0
+    P25:           300.0
+    Median:        500.0
+    Mean:          639.0
+    P75:           750.0
+    P95:         1,800.0
+    Max:         3,473.0
+
+  Dist. School 2 (m) (n=93, 1.4% coverage):
+    Min:             1.0
+    P5:            140.0
+    P25:           400.0
+    Median:        700.0
+    Mean:        1,072.0
+    P75:         1,200.0
+    P95:         3,040.0
+    Max:         6,557.0
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Key Categorical Fields
+--------------------------------------------------------------------------------
+
+  Offer Type (5,746 values, 85.0% coverage, 2 unique):
+    RENT                                             5,745 (100.0%)
+    SALE                                                 1 (  0.0%)
+
+  Object Category (5,798 values, 85.8% coverage, 21 unique):
+    Wohnung                                          3,150 ( 54.3%)
+    Gewerbeobjekt                                    1,112 ( 19.2%)
+    Parkplatz, Garage                                  277 (  4.8%)
+    Tiefgarage                                         203 (  3.5%)
+    Möblierte Wohnung                                  189 (  3.3%)
+    Haus                                               158 (  2.7%)
+    Bastelraum                                         150 (  2.6%)
+    Parkplatz                                          127 (  2.2%)
+    Einzelzimmer                                        82 (  1.4%)
+    Dachwohnung                                         72 (  1.2%)
+    Einzelgarage                                        62 (  1.1%)
+    Maisonette                                          54 (  0.9%)
+    Studio                                              38 (  0.7%)
+    Attika                                              28 (  0.5%)
+    Loft                                                27 (  0.5%)
+    ... and 11 more unique values
+
+  Object Type: all empty
+
+  Object Type Text (6,757 values, 100.0% coverage, 22 unique):
+    Wohnung                                          3,738 ( 55.3%)
+    Gewerbeobjekt                                    1,233 ( 18.2%)
+    Parkplatz, Garage                                  295 (  4.4%)
+    Möblierte Wohnung                                  274 (  4.1%)
+    Tiefgarage                                         218 (  3.2%)
+    Haus                                               196 (  2.9%)
+    Bastelraum                                         160 (  2.4%)
+    Parkplatz                                          148 (  2.2%)
+    Einzelzimmer                                        91 (  1.3%)
+    Dachwohnung                                         83 (  1.2%)
+    Einzelgarage                                        73 (  1.1%)
+    Maisonette                                          72 (  1.1%)
+    Studio                                              47 (  0.7%)
+    Attika                                              36 (  0.5%)
+    Loft                                                30 (  0.4%)
+    Villa                                               17 (  0.3%)
+    Diverses                                            15 (  0.2%)
+    Doppeleinfamilienhaus                               11 (  0.2%)
+    WG-Zimmer                                            8 (  0.1%)
+    Mehrfamilienhaus                                     3 (  0.0%)
+    ... and 5 more unique values
+
+  Scrape Source (6,757 values, 100.0% coverage, 1 unique):
+    COMPARIS                                         6,757 (100.0%)
+
+  Canton (object_state) (24 values, 0.4% coverage, 2 unique):
+    zh                                                  15 ( 62.5%)
+    ge                                                   1 (  4.2%)
+    vs                                                   1 (  4.2%)
+    ne                                                   1 (  4.2%)
+    so                                                   1 (  4.2%)
+    sg                                                   1 (  4.2%)
+    ti                                                   1 (  4.2%)
+    ag                                                   1 (  4.2%)
+    vd                                                   1 (  4.2%)
+    bl                                                   1 (  4.2%)
+
+  City (object_city) (24 values, 0.4% coverage, 2 unique):
+    Zürich                                              14 ( 58.3%)
+    Chêne-Bougeries                                      1 (  4.2%)
+    Vouvry                                               1 (  4.2%)
+    Peseux                                               1 (  4.2%)
+    Luterbach                                            1 (  4.2%)
+    Bütschwil                                            1 (  4.2%)
+    Stäfa                                                1 (  4.2%)
+    Bellinzona                                           1 (  4.2%)
+    Gebenstorf                                           1 (  4.2%)
+    Nyon                                                 1 (  4.2%)
+    Pratteln                                             1 (  4.2%)
+
+  Price Type (6,757 values, 100.0% coverage, 6 unique):
+    3                                                6,592 ( 97.6%)
+    6                                                  111 (  1.6%)
+    2                                                   37 (  0.5%)
+    5                                                   11 (  0.2%)
+    4                                                    5 (  0.1%)
+    0                                                    1 (  0.0%)
+
+  Status (6,757 values, 100.0% coverage, 2 unique):
+    INACTIVE                                         6,741 ( 99.8%)
+    ACTIVE                                              16 (  0.2%)
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Boolean / Feature Flag Fields
+--------------------------------------------------------------------------------
+  Field                              True    False    Empty   Coverage
+  -----                              ----    -----    -----   --------
+  prop_balcony                          0        0    6,757       0.0%
+  prop_elevator                         0        0    6,757       0.0%
+  prop_parking                          0        0    6,757       0.0%
+  prop_garage                           0        0    6,757       0.0%
+  prop_fireplace                        0        0    6,757       0.0%
+  prop_child_friendly                 206        0    6,551       3.0%
+  animal_allowed                        0        0    6,757       0.0%
+  maybe_temporary                       0        0    6,757       0.0%
+  is_new_building                       0        0    6,757       0.0%
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Geolocation Coverage
+--------------------------------------------------------------------------------
+  Rows with valid lat+lng: 5,210 / 6,757 (77.1%)
+  Latitude  range: [0.0000, 47.7468]
+  Longitude range: [0.0000, 9.8652]
+  Within Switzerland bounds: 5,209 (100.0%)
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Text Field Coverage & Length
+--------------------------------------------------------------------------------
+
+  title (6,757 populated, 100.0% coverage):
+    Avg length:          43 chars
+    Median length:       41 chars
+    Max length:         165 chars
+    Min length:           3 chars
+
+  object_description (5,798 populated, 85.8% coverage):
+    Avg length:         955 chars
+    Median length:      835 chars
+    Max length:       6,817 chars
+    Min length:           8 chars
+
+  remarks (6,753 populated, 99.9% coverage):
+    Avg length:         965 chars
+    Median length:      845 chars
+    Max length:       6,817 chars
+    Min length:           8 chars
+
+--------------------------------------------------------------------------------
+  [structured_without_images] JSON Field Analysis
+--------------------------------------------------------------------------------
+
+  JSON field: orig_data
+    Populated: 6,757 / 6,757 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      AdId                                      200/200 (100%)
+      AdStatus                                  200/200 (100%)
+      DealType                                  200/200 (100%)
+      Site                                      200/200 (100%)
+      Title                                     200/200 (100%)
+      DisplayTitle                              200/200 (100%)
+      NumRooms                                  200/200 (100%)
+      AddressSegments                           200/200 (100%)
+      PropertyTypeId                            200/200 (100%)
+      PropertyTypeText                          200/200 (100%)
+      ComparisPoints                            200/200 (100%)
+      Price                                     200/200 (100%)
+      PriceText                                 200/200 (100%)
+      PriceType                                 200/200 (100%)
+      PriceTypeText                             200/200 (100%)
+      Area                                      200/200 (100%)
+      ImageUrls                                 200/200 (100%)
+      FoundForTheFirstTime                      200/200 (100%)
+      SharingUrl                                200/200 (100%)
+      Remarks                                   200/200 (100%)
+      MapData                                   200/200 (100%)
+      TargetPrice                               200/200 (100%)
+      ShowPremiumListingPromotion               200/200 (100%)
+      PremiumListingBookingUrl                  200/200 (100%)
+      DocumentLinks                             200/200 (100%)
+    Nested keys (sampled):
+      AddressSegments.PostalCode                          200/200 (100%)
+      AddressSegments.City                                200/200 (100%)
+      AddressSegments.Street                              200/200 (100%)
+      AddressSegments.StreetNumber                        200/200 (100%)
+      MapData.ShowStreetView                              200/200 (100%)
+      MapData.ShowMap                                     200/200 (100%)
+      MapData.GeoPosLat                                   200/200 (100%)
+      MapData.GeoPosLng                                   200/200 (100%)
+      MapData.MarkerTooltipText                           200/200 (100%)
+      MapData.ZoomLevel                                   200/200 (100%)
+      MapData.ShowMarker                                  200/200 (100%)
+      MapData.PlanningProjectsUrl                         200/200 (100%)
+      MapData.StreetViewUrl                               200/200 (100%)
+      MainData[*].Key                                     200/200 (100%)
+      MainData[*].Value                                   200/200 (100%)
+      MainData[*].Title                                   200/200 (100%)
+      Services[*].ServiceLinkType                         200/200 (100%)
+      Services[*].OverTitle                               200/200 (100%)
+      Services[*].Title                                   200/200 (100%)
+      Services[*].Url                                     200/200 (100%)
+      Services[*].ImpressionTrackingUrl                   200/200 (100%)
+      Services[*].External                                200/200 (100%)
+      Services[*].Logo                                    200/200 (100%)
+      Services[*].DisclaimerText                          200/200 (100%)
+      Services[*].DisclaimerLogo                          200/200 (100%)
+      Services[*].LogoAltText                             200/200 (100%)
+      PriceInformation[*].Key                             187/200 (94%)
+      PriceInformation[*].Value                           187/200 (94%)
+      PriceInformation[*].Title                           187/200 (94%)
+      AddressSegments.canton                              168/200 (84%)
+
+  JSON field: images
+    Populated: 6,757 / 6,757 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      images                                    158/200 (79%)
+      image_paths                                42/200 (21%)
+    Nested keys (sampled):
+      images[*].url                                       151/200 (76%)
+      images[*].filename                                  151/200 (76%)
+
+  JSON field: location_address
+    Populated: 6,757 / 6,757 (100.0%)
+    Successfully parsed in sample: 200/200
+    Top-level keys (from 200 parsed objects):
+      PostalCode                                200/200 (100%)
+      City                                      200/200 (100%)
+      Street                                    200/200 (100%)
+      StreetNumber                              200/200 (100%)
+      canton                                    168/200 (84%)
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Image Availability
+--------------------------------------------------------------------------------
+  Sample size: 500
+  With at least 1 image: 385 (77.0%)
+  Avg images per listing:    4.8
+  Median images per listing: 4
+  Max images per listing:    15
+
+--------------------------------------------------------------------------------
+  [structured_without_images] Breakdown by scrape_source
+--------------------------------------------------------------------------------
+  COMPARIS                                    6,757 (100.0%)
+
+====================================================================================================
+  CROSS-SOURCE COLUMN COMPARISON MATRIX
+====================================================================================================
+  Column                                            robinreal               sred structured_with_im structured_without
+  ------                                               ------             ------             ------             ------
+  agency_email                                             0%                 0%                 0%                 0%
+  agency_name                                              0%                 0%                 0%                 0%
+  agency_phone                                             0%                 0%                 0%                 0%
+  animal_allowed                                         100%                 0%                 0%                 0%
+  area                                                    71%               100%               100%               100%
+  available_from                                          83%                 0%                62%                54%
+  distance_kindergarten                                    0%                 0%                 5%                 1%
+  distance_public_transport                                0%                 0%                 8%                 3%
+  distance_school_1                                        0%                 0%                 6%                 2%
+  distance_school_2                                        0%                 0%                 4%                 1%
+  distance_shop                                            0%                 0%                 7%                 2%
+  floor                                                    0%                 0%                50%                15%
+  geo_lat                                                 89%               100%               100%                77%
+  geo_lng                                                 89%               100%               100%                77%
+  id                                                     100%               100%               100%               100%
+  images                                                 100%               100%               100%               100%
+  is_new_building                                         89%                 0%                 0%                 0%
+  last_scraped                                            51%                 0%               100%               100%
+  location_address                                       100%               100%               100%               100%
+  maybe_temporary                                          0%                 0%                 0%                 0%
+  number_of_rooms                                        100%               100%                74%                72%
+  object_category                                        100%                 0%               100%                86%
+  object_city                                            100%                 0%                77%                 0%
+  object_description                                     100%               100%               100%                86%
+  object_state                                           100%                 0%                77%                 0%
+  object_street                                           99%                 0%                63%                 0%
+  object_type                                            100%                 0%                 0%                 0%
+  object_type_text                                       100%                 0%               100%               100%
+  object_zip                                             100%                 0%                77%                 0%
+  offer_type                                             100%               100%                99%                85%
+  orig_data                                              100%               100%               100%               100%
+  partner_name                                           100%               100%               100%               100%
+  platform_id                                            100%               100%               100%               100%
+  platform_url                                           100%                 0%               100%               100%
+  price                                                  100%               100%               100%               100%
+  price_type                                             100%                 0%               100%               100%
+  prop_balcony                                           100%                 0%                 0%                 0%
+  prop_child_friendly                                    100%                 0%                11%                 3%
+  prop_elevator                                          100%                 0%                 0%                 0%
+  prop_fireplace                                          87%                 0%                 0%                 0%
+  prop_garage                                            100%                 0%                 0%                 0%
+  prop_parking                                           100%                 0%                 0%                 0%
+  remarks                                                100%               100%               100%               100%
+  rent_extra                                             100%                 0%                46%                31%
+  rent_gross                                             100%               100%                 0%                 0%
+  rent_net                                               100%                 0%                99%                85%
+  scrape_source                                          100%               100%               100%               100%
+  status                                                 100%                 0%               100%               100%
+  supermarket_name                                         0%                 0%                 0%                 0%
+  time_of_creation                                        15%                 0%               100%               100%
+  title                                                  100%               100%               100%               100%
+  year_built                                               0%                 0%                29%                 8%
+
+====================================================================================================
+  FEATURE AVAILABILITY HEATMAP (Challenge-Critical Fields)
+====================================================================================================
+
+  Core Identity:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    id                                        [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    platform_id                               [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    scrape_source                             [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    title                                     [###] 100%       [###] 100%       [###] 100%       [###] 100%
+
+  Pricing:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    price                                     [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    rent_gross                                [###] 100%       [###] 100%         [   ] 0%         [   ] 0%
+    rent_net                                  [###] 100%         [   ] 0%        [###] 99%        [## ] 85%
+    rent_extra                                [###] 100%         [   ] 0%        [#  ] 46%        [#  ] 31%
+    price_type                                [###] 100%         [   ] 0%       [###] 100%       [###] 100%
+
+  Property Specs:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    number_of_rooms                           [###] 100%       [###] 100%        [## ] 74%        [## ] 72%
+    area                                       [## ] 71%       [###] 100%       [###] 100%       [###] 100%
+    floor                                       [   ] 0%         [   ] 0%        [## ] 50%        [#  ] 15%
+    year_built                                  [   ] 0%         [   ] 0%        [#  ] 29%         [#  ] 8%
+    object_category                           [###] 100%         [   ] 0%       [###] 100%        [## ] 86%
+    object_type                               [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    offer_type                                [###] 100%       [###] 100%        [###] 99%        [## ] 85%
+
+  Location - Address:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    object_street                              [###] 99%         [   ] 0%        [## ] 63%         [#  ] 0%
+    object_city                               [###] 100%         [   ] 0%        [## ] 77%         [#  ] 0%
+    object_zip                                [###] 100%         [   ] 0%        [## ] 77%         [#  ] 0%
+    object_state                              [###] 100%         [   ] 0%        [## ] 77%         [#  ] 0%
+
+  Location - Geo:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    geo_lat                                    [## ] 89%       [###] 100%       [###] 100%        [## ] 77%
+    geo_lng                                    [## ] 89%       [###] 100%       [###] 100%        [## ] 77%
+
+  Location - JSON:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    location_address                          [###] 100%       [###] 100%       [###] 100%       [###] 100%
+
+  Distances:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    distance_public_transport                   [   ] 0%         [   ] 0%         [#  ] 8%         [#  ] 3%
+    distance_shop                               [   ] 0%         [   ] 0%         [#  ] 7%         [#  ] 2%
+    distance_kindergarten                       [   ] 0%         [   ] 0%         [#  ] 5%         [#  ] 1%
+    distance_school_1                           [   ] 0%         [   ] 0%         [#  ] 6%         [#  ] 2%
+    distance_school_2                           [   ] 0%         [   ] 0%         [#  ] 4%         [#  ] 1%
+
+  Features / Booleans:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    prop_balcony                              [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    prop_elevator                             [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    prop_parking                              [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    prop_garage                               [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    prop_fireplace                             [## ] 87%         [   ] 0%         [   ] 0%         [   ] 0%
+    prop_child_friendly                       [###] 100%         [   ] 0%        [#  ] 11%         [#  ] 3%
+    animal_allowed                            [###] 100%         [   ] 0%         [   ] 0%         [   ] 0%
+    maybe_temporary                             [   ] 0%         [   ] 0%         [   ] 0%         [   ] 0%
+    is_new_building                            [## ] 89%         [   ] 0%         [   ] 0%         [   ] 0%
+
+  Text Content:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    object_description                        [###] 100%       [###] 100%       [###] 100%        [## ] 86%
+    remarks                                   [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    title                                     [###] 100%       [###] 100%       [###] 100%       [###] 100%
+
+  Rich Data:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    orig_data                                 [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    images                                    [###] 100%       [###] 100%       [###] 100%       [###] 100%
+    location_address                          [###] 100%       [###] 100%       [###] 100%       [###] 100%
+
+  Time / Availability:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    available_from                             [## ] 83%         [   ] 0%        [## ] 62%        [## ] 54%
+    time_of_creation                           [#  ] 15%         [   ] 0%       [###] 100%       [###] 100%
+    last_scraped                               [## ] 51%         [   ] 0%       [###] 100%       [###] 100%
+    status                                    [###] 100%         [   ] 0%       [###] 100%       [###] 100%
+
+  Agency:
+    Field                                      robinreal             sred structured_with_ structured_witho
+    -----                                          -----            -----            -----            -----
+    agency_name                                 [   ] 0%         [   ] 0%         [   ] 0%         [   ] 0%
+    agency_phone                                [   ] 0%         [   ] 0%         [   ] 0%         [   ] 0%
+    agency_email                                [   ] 0%         [   ] 0%         [   ] 0%         [   ] 0%
+    partner_name                              [###] 100%       [###] 100%       [###] 100%       [###] 100%
+
+====================================================================================================
+  ID OVERLAP ANALYSIS BETWEEN SOURCES
+====================================================================================================
+  robinreal: 797 unique IDs
+  sred: 11,105 unique IDs
+  structured_with_images: 4,160 unique IDs
+  structured_without_images: 6,757 unique IDs
+  robinreal ∩ sred: 0 shared IDs
+  robinreal ∩ structured_with_images: 0 shared IDs
+  robinreal ∩ structured_without_images: 0 shared IDs
+  sred ∩ structured_with_images: 0 shared IDs
+  sred ∩ structured_without_images: 0 shared IDs
+  structured_with_images ∩ structured_without_images: 0 shared IDs
+
+====================================================================================================
+  STRUCTURED: WITH-IMAGES vs WITHOUT-IMAGES COMPARISON
+====================================================================================================
+  with_images:    4,160 unique IDs
+  without_images: 6,757 unique IDs
+  Overlap:        0
+  Only in with_images:    4,160
+  Only in without_images: 6,757
+
+  Column-level coverage difference (with_images % - without_images %):
+  Column                                    With Imgs    No Imgs       Diff
+  ------                                    ---------    -------       ----
+  object_city                                   77.4%       0.4%     +77.0%
+  object_zip                                    77.2%       0.4%     +76.8%
+  object_state                                  76.9%       0.4%     +76.6%
+  object_street                                 63.2%       0.3%     +62.9%
+  floor                                         50.2%      15.4%     +34.8%
+  geo_lat                                      100.0%      77.1%     +22.9%
+  geo_lng                                      100.0%      77.1%     +22.9%
+  year_built                                    29.3%       8.0%     +21.3%
+  rent_extra                                    45.7%      30.8%     +14.9%
+  rent_net                                      99.5%      85.0%     +14.5%
+  offer_type                                    99.5%      85.0%     +14.4%
+  object_category                              100.0%      85.8%     +14.2%
+  object_description                           100.0%      85.8%     +14.2%
+  available_from                                61.9%      53.7%      +8.2%
+  prop_child_friendly                           10.9%       3.0%      +7.8%
+  distance_public_transport                      8.2%       2.5%      +5.7%
+  distance_shop                                  7.3%       2.2%      +5.0%
+  distance_school_1                              5.6%       1.8%      +3.7%
+  distance_kindergarten                          4.5%       1.5%      +3.1%
+  distance_school_2                              4.1%       1.4%      +2.7%
+
+====================================================================================================
+  ORIG_DATA JSON DEEP DIVE (per source)
+====================================================================================================
+
+--------------------------------------------------------------------------------
+  [robinreal] orig_data structure
+--------------------------------------------------------------------------------
+  Parsed 300/300 sampled records
+
+  Top-level keys:
+    source                                         300/300
+    listingId                                      300/300
+    organizationId                                 300/300
+    building_type                                  300/300
+    kategorietype                                  300/300
+    object_type                                    300/300
+    offer_type                                     300/300
+    type                                           300/300
+    state                                          300/300
+    price_unit                                     300/300
+
+--------------------------------------------------------------------------------
+  [sred] orig_data structure
+--------------------------------------------------------------------------------
+  Parsed 300/300 sampled records
+
+  Top-level keys:
+    source                                         300/300
+    split                                          300/300
+    listing_id                                     300/300
+    image_url                                      300/300
+    raw_row                                        300/300
+
+--------------------------------------------------------------------------------
+  [structured_with_images] orig_data structure
+--------------------------------------------------------------------------------
+  Parsed 300/300 sampled records
+
+  Top-level keys:
+    AdId                                           300/300
+    AdStatus                                       300/300
+    DealType                                       300/300
+    Site                                           300/300
+    Title                                          300/300
+    DisplayTitle                                   300/300
+    NumRooms                                       300/300
+    AddressSegments                                300/300
+    PropertyTypeId                                 300/300
+    PropertyTypeText                               300/300
+    ComparisPoints                                 300/300
+    Price                                          300/300
+    PriceText                                      300/300
+    PriceType                                      300/300
+    PriceTypeText                                  300/300
+    Area                                           300/300
+    ImageUrls                                      300/300
+    FoundForTheFirstTime                           300/300
+    SharingUrl                                     300/300
+    Remarks                                        300/300
+
+  Features list present in 300/300 records
+  Feature Keys found:
+    HasLift                                        108/300
+    HasBalconies                                    92/300
+    HasParkingOutdoor                               67/300
+    HasParkingIndoor                                54/300
+    HasCableTV                                      39/300
+    Heating                                         24/300
+    HasDishwasher                                   24/300
+    HasGarden                                       22/300
+    HasDryer                                        18/300
+    HasWashingmachine                               17/300
+    HasCellar                                       16/300
+    StoveType                                       14/300
+    HasTerraces                                     13/300
+    HasBaths                                        11/300
+    HasFireplace                                     5/300
+    HasRestrooms                                     2/300
+    HasToilets                                       1/300
+    HasPorches                                       1/300
+    HasRamp                                          1/300
+
+  MainData list present in 300/300 records
+  MainData Keys found:
+    PropertyType                                   300/300
+    NumRooms                                       300/300
+    Floor                                          300/300
+    LivingSpace                                    300/300
+    YearOfConstruction                             300/300
+    AvailableDate                                  300/300
+    NumBalconies                                    92/300
+    UsefulArea                                      47/300
+    PetsAllowed                                     45/300
+    RenovationYear                                  39/300
+    IsWheelchairAccessible                          25/300
+    IsMinergieCertified                             15/300
+    NumTerraces                                     13/300
+    IsFurnished                                     13/300
+    BuildingArea                                     6/300
+    IsOldBuilding                                    6/300
+    IsNewBuilding                                    5/300
+
+--------------------------------------------------------------------------------
+  [structured_without_images] orig_data structure
+--------------------------------------------------------------------------------
+  Parsed 300/300 sampled records
+
+  Top-level keys:
+    AdId                                           300/300
+    AdStatus                                       300/300
+    DealType                                       300/300
+    Site                                           300/300
+    Title                                          300/300
+    DisplayTitle                                   300/300
+    NumRooms                                       300/300
+    AddressSegments                                300/300
+    PropertyTypeId                                 300/300
+    PropertyTypeText                               300/300
+    ComparisPoints                                 300/300
+    Price                                          300/300
+    PriceText                                      300/300
+    PriceType                                      300/300
+    PriceTypeText                                  300/300
+    Area                                           300/300
+    ImageUrls                                      300/300
+    FoundForTheFirstTime                           300/300
+    SharingUrl                                     300/300
+    Remarks                                        300/300
+
+  Features list present in 300/300 records
+  Feature Keys found:
+    HasBalconies                                    75/300
+    Heating                                         68/300
+    HasLift                                         67/300
+    HasParkingOutdoor                               38/300
+    HasCableTV                                      33/300
+    StoveType                                       32/300
+    HasParkingIndoor                                29/300
+    HasDryer                                        17/300
+    HasDishwasher                                   17/300
+    HasWashingmachine                               15/300
+    HasGarden                                       10/300
+    HasBaths                                         9/300
+    HasCellar                                        9/300
+    HasFireplace                                     7/300
+    HasTerraces                                      4/300
+    HasRestrooms                                     2/300
+    HasSwimmingPools                                 1/300
+    HasWaterSupply                                   1/300
+    HasToilets                                       1/300
+
+  MainData list present in 300/300 records
+  MainData Keys found:
+    PropertyType                                   300/300
+    NumRooms                                       300/300
+    Floor                                          300/300
+    LivingSpace                                    300/300
+    YearOfConstruction                             300/300
+    AvailableDate                                  300/300
+    NumBalconies                                    75/300
+    PetsAllowed                                     38/300
+    RenovationYear                                  32/300
+    UsefulArea                                      24/300
+    IsFurnished                                     16/300
+    IsWheelchairAccessible                          15/300
+    BuildingArea                                     8/300
+    IsMinergieCertified                              7/300
+    NumTerraces                                      4/300
+    IsOldBuilding                                    3/300
+    IsNewBuilding                                    2/300
+
+====================================================================================================
+  SRED IMAGE FILES CHECK
+====================================================================================================
+  Total image files: 11,105
+  Total size: 114.0 MB
+  Avg size: 10.5 KB
+  Min size: 6.4 KB
+  Max size: 17.1 KB
+
+====================================================================================================
+  EXECUTIVE SUMMARY
+====================================================================================================
+
+  Total listings across all sources: 22,819
+    robinreal: 797 rows
+    sred: 11,105 rows
+    structured_with_images: 4,160 rows
+    structured_without_images: 6,757 rows
+
+  KEY FINDINGS:
+
+    [structured_without_images] Data gaps:
+      - geo coverage only 77%
+
+====================================================================================================
+  END OF REPORT
+====================================================================================================
+
