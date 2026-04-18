@@ -67,6 +67,16 @@ def _candidate_summary(c: dict[str, Any]) -> dict[str, Any]:
         "distance_shop": c.get("distance_shop"),
         "distance_kindergarten": c.get("distance_kindergarten"),
         "distance_school_1": c.get("distance_school_1"),
+        # --- enrichment data ---
+        "floor_level": c.get("floor_level"),
+        "year_built": c.get("year_built"),
+        "renovation_year": c.get("renovation_year"),
+        "is_furnished": c.get("is_furnished"),
+        "price_per_sqm": c.get("price_per_sqm"),
+        "price_vs_city_median": c.get("price_vs_city_median"),
+        "municipality": c.get("municipality"),
+        "lake_distance_m": c.get("lake_distance_m"),
+        "is_urban": c.get("is_urban"),
     }
 
 
@@ -333,29 +343,53 @@ _HTML = """\
       <button id="runBtn" onclick="runTrace()">Run Trace</button>
     </div>
     <div class="presets">
+      <div style="width:100%;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;margin-bottom:2px">🏠 General</div>
       <button onclick="setQ('Ruhige 3.5-Zimmer Wohnung in Zürich unter CHF 2500')">DE: Zürich quiet 3.5Z</button>
       <button onclick="setQ('2 bedroom flat in Basel under CHF 3500')">EN: Basel 2-bed</button>
-      <button onclick="setQ('Ich suche eine Wohnung im Raum Zürich, Dübendorf oder Wallisellen, idealerweise 2.5 bis 3.5 Zimmer, ab 70 m², Budget bis 3100 CHF, max 25 Minuten mit dem ÖV bis Stadelhofen')">DE: Multi-city commute</button>
-      <button onclick="setQ('Wir suchen als Familie zu dritt etwas im Raum Kilchberg, Rüschlikon oder Thalwil, am liebsten nahe am See oder mit schneller Verbindung nach Zürich, mindestens 3.5 Zimmer, ab 90 m², Budget bis 4300 CHF, gern mit Balkon / Terrasse, Lift, Keller')">DE: Family lakeside</button>
-      <button onclick="setQ(&quot;I&apos;m looking for an apartment in the greater Zurich area, ideally somewhere like Oerlikon, Altstetten, or Schlieren, with at least 60 sqm, preferably 2 to 3 rooms, a commute under 30 minutes to Zurich HB door to door&quot;)">EN: Zürich area commute</button>
-      <button onclick="setQ('We are a family of 3 looking around Basel for something with 2 or 3 bedrooms, ideally 85 sqm or more, budget up to CHF 3500, in an area with good schools, quiet streets, and enough nearby amenities')">EN: Basel family schools</button>
-      <button onclick="setQ('Ich suche etwas Kleineres in Lausanne, möglichst in der Nähe von EPFL, gern möbliert, unter 2100 CHF, mit guter Anbindung')">DE: Lausanne EPFL</button>
-      <button onclick="setQ(&quot;I&apos;m looking for a place near Geneva city center but not right in the busiest part, ideally with 2 bedrooms, budget up to CHF 3600, good transport access&quot;)">EN: Geneva central</button>
-      <button onclick="setQ('Studio in Lausanne under CHF 1500')">EN: Studio Lausanne</button>
-      <button onclick="setQ('3-Zimmer Wohnung in Schwyz zu mieten')">DE: Schwyz 3Z rent</button>
-      <button onclick="setQ('Haus zu kaufen in Zürich, 5 Zimmer')">DE: Zürich house sale</button>
-      <button onclick="setQ('something nice and central')">Vague: nice &amp; central</button>
-      <button onclick="setQ('flat in Zurich between 1500 and 2500 CHF')">EN: price range</button>
-      <button onclick="setQ('apartment in Basel for 2000 per month')">EN: price per month</button>
       <button onclick="setQ('Je cherche un appartement 3 pièces à Genève, lumineux, moins de 2500 CHF')">FR: Genève 3 pièces</button>
       <button onclick="setQ('Cerco un appartamento a Lugano, 3 locali, massimo 2000 CHF')">IT: Lugano 3 locali</button>
+      <button onclick="setQ('Studio in Lausanne under CHF 1500')">EN: Studio Lausanne</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🧪 Enrichment: Claude Text Extraction</div>
+      <button onclick="setQ('Wohnung mit Lift und Geschirrspüler in Zürich, 3 Zimmer')">🆕 elevator + dishwasher</button>
+      <button onclick="setQ('apartment in Bern with washing machine, cellar, and garden, 3 rooms under 2500 CHF')">🆕 washing machine + cellar + garden</button>
+      <button onclick="setQ('Ich brauche eine Wohnung mit Balkon, Waschmaschine und Parkplatz in Zürich')">🆕 balcony + laundry + parking</button>
+      <button onclick="setQ('pet-friendly apartment in Basel with elevator, at least 3 rooms')">🆕 pets + elevator</button>
+      <button onclick="setQ('Minergie-Wohnung mit Cheminée in Luzern')">🆕 minergie + fireplace</button>
+      <button onclick="setQ('möblierte Wohnung in Genf mit Geschirrspüler und Kellerabteil')">🆕 furnished + dishwasher + cellar</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🧪 Enrichment: Geospatial (lake + municipality)</div>
+      <button onclick="setQ('Wohnung nahe am Zürichsee, 3.5 Zimmer, max 3500 CHF')">🆕 near Zürichsee</button>
+      <button onclick="setQ('apartment near lake Geneva with a view, 2 bedrooms')">🆕 near lake + views</button>
+      <button onclick="setQ('Seenähe in Luzern, ruhige Lage, mindestens 80m²')">🆕 near lake + quiet + spacious</button>
+      <button onclick="setQ('3 Zimmer in Thalwil oder Kilchberg, nahe am See, mit Balkon')">🆕 lakeside + balcony</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🧪 Enrichment: Backfill (year/floor/price)</div>
+      <button onclick="setQ('modern apartment in Zurich built after 2015, bright, high floor')">🆕 modern + bright (year + floor)</button>
+      <button onclick="setQ('Neubau in Bern, Erstvermietung, mindestens 3.5 Zimmer')">🆕 new_build (year ≥ 2022)</button>
+      <button onclick="setQ('günstige Wohnung in Zürich, 2.5 Zimmer, gutes Preis-Leistungs-Verhältnis')">🆕 affordable (price vs median)</button>
+      <button onclick="setQ('recently renovated apartment in Basel, well maintained, 3 rooms')">🆕 well_maintained (renovation)</button>
+      <button onclick="setQ('helle Dachwohnung in Zürich, oberste Etage, mit Aussicht')">🆕 bright + views (high floor)</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🧪 Enrichment: Neighborhood (urban/rural)</div>
+      <button onclick="setQ('lively apartment in Zurich city center, near restaurants and nightlife')">🆕 lively (is_urban=1)</button>
+      <button onclick="setQ('ruhige Wohnung auf dem Land, Kanton Zürich, Natur, mindestens 4 Zimmer')">🆕 quiet + rural (is_urban=0)</button>
+      <button onclick="setQ('vibrant neighborhood in Basel, close to cafés and bars, 2 rooms')">🆕 lively + urban</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🧪 Combo: multiple enrichment sources</div>
+      <button onclick="setQ('Wir suchen als Familie eine moderne 4.5-Zimmer-Wohnung nahe am See in der Region Zürich, mit Lift, Balkon, Waschmaschine, unter 4000 CHF, guter Zustand')">🆕 FULL: family lakeside modern</button>
+      <button onclick="setQ('I need a bright, affordable studio in Bern near public transport, with an elevator and washing machine, move in by June')">🆕 FULL: student-friendly combo</button>
+      <button onclick="setQ('Neubau-Wohnung in Luzern, Minergie, mit Garten und Parkplatz, ruhige Lage, 3.5 Zimmer, nahe am See')">🆕 FULL: new build + green + lake</button>
+      <button onclick="setQ('Appartement moderne à Lausanne, proche du lac, avec ascenseur, lave-vaisselle, et balcon, maximum 3000 CHF')">🆕 FR: modern + lake + enriched features</button>
+      <button onclick="setQ('Cerco un appartamento moderno a Lugano vicino al lago, con ascensore, lavastoviglie, balcone, massimo 2500 CHF')">🆕 IT: modern + lake + features</button>
+
+      <div style="width:100%;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">📋 Original presets</div>
+      <button onclick="setQ('Ich suche eine Wohnung im Raum Zürich, Dübendorf oder Wallisellen, idealerweise 2.5 bis 3.5 Zimmer, ab 70 m², Budget bis 3100 CHF, max 25 Minuten mit dem ÖV bis Stadelhofen')">DE: Multi-city commute</button>
+      <button onclick="setQ('Wir suchen als Familie zu dritt etwas im Raum Kilchberg, Rüschlikon oder Thalwil, am liebsten nahe am See oder mit schneller Verbindung nach Zürich, mindestens 3.5 Zimmer, ab 90 m², Budget bis 4300 CHF, gern mit Balkon / Terrasse, Lift, Keller')">DE: Family lakeside</button>
+      <button onclick="setQ('Ich suche etwas Kleineres in Lausanne, möglichst in der Nähe von EPFL, gern möbliert, unter 2100 CHF, mit guter Anbindung')">DE: Lausanne EPFL</button>
       <button onclick="setQ('Wohnung in 8001 Zürich, 3 Zimmer')">DE: postal code 8001</button>
-      <button onclick="setQ('mindestens 80 m² Wohnung in Zürich zu mieten')">DE: min area 80m²</button>
-      <button onclick="setQ('Einfamilienhaus in Zug zu kaufen')">DE: Zug house sale</button>
-      <button onclick="setQ('Wohnung mit Lift und Haustiere erlaubt in Bern')">DE: Bern elevator+pets</button>
-      <button onclick="setQ('apartment in Bern, budget up to CHF 2800, 3 rooms')">EN: Bern budget 3 rooms</button>
-      <button onclick="setQ('Zürich')">Minimal: Zürich</button>
-      <button onclick="setQ('2 bedroom apartment in Zurich under CHF 3000')">EN: Zürich 2-bed</button>
+      <button onclick="setQ('Haus zu kaufen in Zürich, 5 Zimmer')">DE: Zürich house sale</button>
+      <button onclick="setQ('something nice and central')">Vague: nice &amp; central</button>
     </div>
   </div>
   <div class="spinner" id="spinner"><div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><p style="margin-top:12px">Running pipeline trace&hellip;</p></div>
@@ -455,10 +489,27 @@ function renderRank(s){
     let sh='';
     if(r.matched_signals&&r.matched_signals.length){const bd=r.signal_breakdown||{};sh=r.matched_signals.map(s=>`<span class="match-tag">${s}${bd[s]!=null?`<span class="mw">+${bd[s]}</span>`:''}</span>`).join('');}
     else sh='<span style="color:var(--muted);font-size:.75rem">—</span>';
-    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div>${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
+    const enrich=enrichBlock(r);
+    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div>${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
   }
   h+='</tbody></table></div>';
   return h;
+}
+function enrichBlock(r){
+  const items=[];
+  if(r.floor_level!=null) items.push(['Floor',r.floor_level]);
+  if(r.year_built!=null) items.push(['Built',r.year_built]);
+  if(r.renovation_year!=null) items.push(['Renovated',r.renovation_year]);
+  if(r.is_furnished!=null) items.push(['Furnished',r.is_furnished?'Yes':'No']);
+  if(r.price_per_sqm!=null) items.push(['CHF/m²',r.price_per_sqm.toFixed(1)]);
+  if(r.price_vs_city_median!=null){const pct=((r.price_vs_city_median-1)*100).toFixed(0);const col=r.price_vs_city_median<0.85?'var(--green)':r.price_vs_city_median>1.15?'var(--red)':'var(--text)';items.push(['vs City Median',`<span style="color:${col}">${(r.price_vs_city_median*100).toFixed(0)}% (${pct>0?'+'+pct:pct}%)</span>`]);}
+  if(r.municipality) items.push(['Municipality',esc(r.municipality)]);
+  if(r.lake_distance_m!=null){const col=r.lake_distance_m<2000?'var(--green)':r.lake_distance_m<5000?'var(--orange)':'var(--muted)';items.push(['Lake distance',`<span style="color:${col}">${(r.lake_distance_m/1000).toFixed(1)} km</span>`]);}
+  if(r.is_urban!=null) items.push(['Urban/Rural',r.is_urban?'🏙️ Urban':'🌿 Rural']);
+  if(!items.length) return '';
+  let h='<div style="margin-top:8px;padding:8px 10px;background:rgba(108,140,255,.06);border:1px solid rgba(108,140,255,.15);border-radius:6px"><div style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Enrichment Data</div><div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:.78rem">';
+  for(const[k,v]of items) h+=`<div style="color:var(--muted)">${k}</div><div>${v}</div>`;
+  return h+'</div></div>';
 }
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 </script>
