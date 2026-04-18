@@ -10,12 +10,32 @@ def test_extract_soft_facts_returns_stub_structure() -> None:
 
 
 def test_filter_soft_facts_returns_candidate_subset() -> None:
-    candidates = [{"listing_id": "1"}, {"listing_id": "2"}]
+    candidates = [
+        {
+            "listing_id": "1",
+            "title": "Sunny apartment with balcony",
+            "description": "Bright home next to the tram stop.",
+            "features": ["balcony"],
+            "distance_public_transport": 120,
+        },
+        {
+            "listing_id": "2",
+            "title": "Plain apartment",
+            "description": "Needs renovation.",
+            "features": [],
+            "distance_public_transport": 1600,
+        },
+    ]
 
-    filtered = filter_soft_facts(candidates, {"raw_query": "quiet"})
+    filtered = filter_soft_facts(
+        candidates,
+        {"raw_query": "bright balcony near transport", "signals": {"bright": 1.0, "balcony": 0.8, "public_transport": 1.0}},
+    )
 
     assert isinstance(filtered, list)
     assert {item["listing_id"] for item in filtered} <= {"1", "2"}
+    assert filtered[0]["listing_id"] == "1"
+    assert filtered[0]["_soft_score"] > filtered[1]["_soft_score"]
 
 
 def test_rank_listings_returns_ranked_shape() -> None:
@@ -77,11 +97,11 @@ def test_rank_listings_uses_image_rag_when_available(monkeypatch) -> None:
 
     ranked = rank_listings(
         candidates=[
-            {"listing_id": "first", "title": "First"},
-            {"listing_id": "second", "title": "Second"},
+            {"listing_id": "first", "title": "First", "_soft_score": 0.1, "_soft_reasons": ["bright"]},
+            {"listing_id": "second", "title": "Second", "_soft_score": 0.5, "_soft_reasons": ["balcony"]},
         ],
         soft_facts={"raw_query": "bright apartment"},
     )
 
     assert [item.listing_id for item in ranked] == ["second", "first"]
-    assert ranked[0].reason == "Ranked by image similarity service."
+    assert ranked[0].reason == "Ranked by image similarity after soft filtering: balcony."

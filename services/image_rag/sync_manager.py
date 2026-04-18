@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 import threading
 
@@ -37,6 +38,7 @@ class SyncManager:
         image_loader: ImageLoader,
         raw_data_dir,
         listings_db_path,
+        max_workers: int,
     ) -> None:
         self._repository = repository
         self._state_store = state_store
@@ -45,8 +47,11 @@ class SyncManager:
         self._image_loader = image_loader
         self._raw_data_dir = raw_data_dir
         self._listings_db_path = listings_db_path
+        self._max_workers = max(1, max_workers)
         self._active_syncs: dict[str, threading.Event] = {}
         self._lock = threading.Lock()
+        self._embed_lock = threading.Lock()
+        self._vector_store_lock = threading.Lock()
 
     @property
     def model_name(self) -> str:
@@ -62,8 +67,17 @@ class SyncManager:
         self._state_store.set_service_state(key="last_backfill_started_at", value=utc_now_iso())
         summary = SyncSummary()
         listing_ids = self._repository.list_listing_ids(limit=limit)
-        for listing_id in listing_ids:
-            summary.merge(self.sync_listing(listing_id))
+        if self._max_workers == 1:
+            for listing_id in listing_ids:
+                summary.merge(self.sync_listing(listing_id))
+        else:
+            with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+                futures = [
+                    executor.submit(self.sync_listing, listing_id)
+                    for listing_id in listing_ids
+                ]
+                for future in as_completed(futures):
+                    summary.merge(future.result())
         self._state_store.set_service_state(key="last_backfill_completed_at", value=utc_now_iso())
         return summary
 
@@ -144,7 +158,8 @@ class SyncManager:
             summary.error_count += 1
             return summary
 
-        embeddings = self._embedder.encode_images(loaded_images)
+        with self._embed_lock:
+            embeddings = self._embedder.encode_images(loaded_images)
         records = [
             VectorImageRecord(
                 row_id=image.image_id,
@@ -159,17 +174,18 @@ class SyncManager:
             for image, embedding in zip(loaded_refs, embeddings, strict=True)
         ]
 
-        self._vector_store.upsert(records)
-        existing_ids = set(
-            self._vector_store.list_row_ids_for_listing(
-                listing_id=listing_id,
-                model_name=self._embedder.model_name,
+        with self._vector_store_lock:
+            self._vector_store.upsert(records)
+            existing_ids = set(
+                self._vector_store.list_row_ids_for_listing(
+                    listing_id=listing_id,
+                    model_name=self._embedder.model_name,
+                )
             )
-        )
-        active_ids = {record.row_id for record in records}
-        stale_ids = sorted(existing_ids - active_ids)
-        if stale_ids:
-            self._vector_store.delete_ids(stale_ids)
+            active_ids = {record.row_id for record in records}
+            stale_ids = sorted(existing_ids - active_ids)
+            if stale_ids:
+                self._vector_store.delete_ids(stale_ids)
 
         self._state_store.upsert_listing_state(
             listing_id=listing_id,
@@ -182,9 +198,10 @@ class SyncManager:
         return summary
 
     def _delete_existing_listing_vectors(self, listing_id: str) -> None:
-        existing_ids = self._vector_store.list_row_ids_for_listing(
-            listing_id=listing_id,
-            model_name=self._embedder.model_name,
-        )
-        if existing_ids:
-            self._vector_store.delete_ids(existing_ids)
+        with self._vector_store_lock:
+            existing_ids = self._vector_store.list_row_ids_for_listing(
+                listing_id=listing_id,
+                model_name=self._embedder.model_name,
+            )
+            if existing_ids:
+                self._vector_store.delete_ids(existing_ids)

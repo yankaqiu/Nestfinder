@@ -36,6 +36,7 @@ class ImageRagSettings:
     startup_limit: int | None
     image_batch_size_override: int | None
     query_batch_size: int
+    sync_workers: int
     candidate_chunk_size: int
     search_k_multiplier: int
     image_download_timeout_s: float
@@ -66,6 +67,7 @@ def get_settings() -> ImageRagSettings:
         startup_limit=_env_optional_int("IMAGE_RAG_STARTUP_LIMIT"),
         image_batch_size_override=_env_optional_int("IMAGE_RAG_IMAGE_BATCH_SIZE"),
         query_batch_size=int(os.getenv("IMAGE_RAG_QUERY_BATCH_SIZE", "1")),
+        sync_workers=int(os.getenv("IMAGE_RAG_SYNC_WORKERS", "4")),
         candidate_chunk_size=int(os.getenv("IMAGE_RAG_CANDIDATE_CHUNK_SIZE", "500")),
         search_k_multiplier=int(os.getenv("IMAGE_RAG_SEARCH_K_MULTIPLIER", "3")),
         image_download_timeout_s=float(os.getenv("IMAGE_RAG_IMAGE_DOWNLOAD_TIMEOUT_S", "20")),

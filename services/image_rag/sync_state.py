@@ -96,6 +96,32 @@ class SyncStateStore:
             ).fetchone()
         return int(row[0]) if row is not None else 0
 
+    def list_indexed_listing_ids(
+        self,
+        *,
+        listing_ids: list[str],
+        model_name: str,
+    ) -> list[str]:
+        if not listing_ids:
+            return []
+
+        placeholders = ", ".join("?" for _ in listing_ids)
+        with self._connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT listing_id
+                FROM listing_sync_state
+                WHERE model_name = ?
+                  AND last_error IS NULL
+                  AND image_count > 0
+                  AND listing_id IN ({placeholders})
+                """,
+                [model_name, *listing_ids],
+            ).fetchall()
+
+        indexed_ids = {str(row["listing_id"]) for row in rows}
+        return [listing_id for listing_id in listing_ids if listing_id in indexed_ids]
+
     def set_service_state(self, *, key: str, value: str | None) -> None:
         with self._connection() as connection:
             connection.execute(

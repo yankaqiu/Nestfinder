@@ -7,7 +7,7 @@ from app.participant.translate import translate_to_english
 
 # Each entry: (key, pattern, score_hint)
 # score_hint = weight contribution when the keyword is present
-_SOFT_SIGNALS: list[tuple[str, re.Pattern[str], float]] = [
+SOFT_SIGNAL_SPECS: list[tuple[str, re.Pattern[str], float]] = [
     # Light / brightness
     ("bright", re.compile(r"\bhell\b|\bbright\b|\blumineux\b|\bluminous\b|\bsonnig\b|\bsunny\b", re.I), 1.0),
 
@@ -102,6 +102,11 @@ _SOFT_SIGNALS: list[tuple[str, re.Pattern[str], float]] = [
     ("modern_bathroom", re.compile(r"\bmoderne?\s+bad\b|\bmodern\s+bathroom\b|\bbadezimmer\b|\bsalle\s+de\s+bain\b", re.I), 0.5),
 ]
 
+SOFT_SIGNAL_PATTERNS: dict[str, re.Pattern[str]] = {
+    key: pattern
+    for key, pattern, _ in SOFT_SIGNAL_SPECS
+}
+
 # Extract numeric commute constraint if present (e.g. "20 minutes to ETH")
 _COMMUTE_TIME_RE = re.compile(
     r"(\d+)\s*(?:minuten|minutes?|min)\s*(?:pendelzeit|commute|fahrt|reise|door.to.door|zu\s+fuß|by\s+(?:public\s+transport|öv|foot|bike|tram|bus|s.bahn))?",
@@ -123,7 +128,7 @@ def extract_soft_facts(query: str) -> dict[str, Any]:
     """Return a dict of soft preference signals derived from the query."""
     query = translate_to_english(query)
     signals: dict[str, float] = {}
-    for key, pattern, weight in _SOFT_SIGNALS:
+    for key, pattern, weight in SOFT_SIGNAL_SPECS:
         if pattern.search(query):
             signals[key] = weight
 
