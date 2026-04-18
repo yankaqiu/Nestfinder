@@ -18,8 +18,8 @@ def rank_listings(
     return [
         RankedListingResult(
             listing_id=str(candidate["listing_id"]),
-            score=1.0,
-            reason="Matched hard filters; soft ranking stub.",
+            score=_candidate_soft_score(candidate),
+            reason=_fallback_reason(candidate),
             listing=_to_listing_data(candidate),
         )
         for candidate in candidates
@@ -63,15 +63,16 @@ def _rank_with_image_rag(
         return None
 
     ranked_candidates = sorted(
-        candidates,
-        key=lambda candidate: (
-            -scores_by_listing.get(str(candidate["listing_id"]), (0.0, None))[0],
-            str(candidate["listing_id"]),
+        enumerate(candidates),
+        key=lambda item: (
+            -scores_by_listing.get(str(item[1]["listing_id"]), (0.0, None))[0],
+            -_candidate_soft_score(item[1]),
+            item[0],
         ),
     )
 
     ranked_results: list[RankedListingResult] = []
-    for candidate in ranked_candidates:
+    for _, candidate in ranked_candidates:
         listing_id = str(candidate["listing_id"])
         score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
         listing = _to_listing_data(candidate)
@@ -83,12 +84,47 @@ def _rank_with_image_rag(
             RankedListingResult(
                 listing_id=listing_id,
                 score=score,
-                reason="Ranked by image similarity service." if score > 0 else "No image match from image similarity service.",
+                reason=_image_rank_reason(candidate, image_score=score),
                 listing=listing,
             )
         )
 
     return ranked_results
+
+
+def _candidate_soft_score(candidate: dict[str, Any]) -> float:
+    try:
+        return float(candidate.get("_soft_score", 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _candidate_soft_reason(candidate: dict[str, Any]) -> str | None:
+    reasons = candidate.get("_soft_reasons")
+    if not isinstance(reasons, list):
+        return None
+    cleaned = [str(reason).strip() for reason in reasons if str(reason).strip()]
+    if not cleaned:
+        return None
+    return ", ".join(cleaned)
+
+
+def _fallback_reason(candidate: dict[str, Any]) -> str:
+    soft_reason = _candidate_soft_reason(candidate)
+    if soft_reason:
+        return f"Matched hard filters and soft preferences: {soft_reason}."
+    return "Matched hard filters."
+
+
+def _image_rank_reason(candidate: dict[str, Any], *, image_score: float) -> str:
+    soft_reason = _candidate_soft_reason(candidate)
+    if image_score > 0 and soft_reason:
+        return f"Ranked by image similarity after soft filtering: {soft_reason}."
+    if image_score > 0:
+        return "Ranked by image similarity service."
+    if soft_reason:
+        return f"No image match; retained by soft filtering: {soft_reason}."
+    return "No image match from image similarity service."
 
 
 def _to_listing_data(candidate: dict[str, Any]) -> ListingData:

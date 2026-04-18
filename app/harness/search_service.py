@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -22,16 +23,23 @@ def query_from_text(
     limit: int,
     offset: int,
 ) -> ListingsResponse:
-    hard_facts = extract_hard_facts(query)
+    # Run hard and soft extraction in parallel to halve LLM latency
+    hard_facts, soft_facts = asyncio.run(_extract_parallel(query))
     hard_facts.limit = limit
     hard_facts.offset = offset
-    soft_facts = extract_soft_facts(query)
     candidates = filter_hard_facts(db_path, hard_facts)
     candidates = filter_soft_facts(candidates, soft_facts)
     return ListingsResponse(
         listings=rank_listings(candidates, soft_facts),
         meta={},
     )
+
+
+async def _extract_parallel(query: str) -> tuple[HardFilters, dict[str, Any]]:
+    loop = asyncio.get_event_loop()
+    hard_task = loop.run_in_executor(None, extract_hard_facts, query)
+    soft_task = loop.run_in_executor(None, extract_soft_facts, query)
+    return await asyncio.gather(hard_task, soft_task)  # type: ignore[return-value]
 
 
 def query_from_filters(

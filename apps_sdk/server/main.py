@@ -12,6 +12,7 @@ from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
 from apps_sdk.server.client import get_listings_api_client
+from apps_sdk.server.preferences import VALID_ACTIONS, get_events, record_event
 from apps_sdk.server.widget import (
     WIDGET_MIME_TYPE,
     WIDGET_TEMPLATE_URI,
@@ -21,6 +22,8 @@ from apps_sdk.server.widget import (
 )
 
 SEARCH_TOOL_NAME = "search_listings"
+RECORD_PREF_TOOL_NAME = "record_preference"
+GET_PREFS_TOOL_NAME = "get_user_preferences"
 logger = logging.getLogger(__name__)
 MAP_RESOURCE_ORIGINS = [
     "https://a.basemaps.cartocdn.com",
@@ -36,6 +39,27 @@ class SearchListingsInput(BaseModel):
     query: str = Field(..., description="Natural-language property search query.")
     limit: int = Field(default=25, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class RecordPreferenceInput(BaseModel):
+    listing_id: str = Field(..., description="ID of the listing the user interacted with.")
+    action: str = Field(
+        ...,
+        description=f"User action type. One of: {', '.join(sorted(VALID_ACTIONS))}.",
+    )
+    query: str | None = Field(default=None, description="The search query that surfaced this listing.")
+    session_id: str | None = Field(default=None, description="Opaque session identifier for grouping events.")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class GetUserPreferencesInput(BaseModel):
+    session_id: str | None = Field(default=None, description="Filter events by session.")
+    listing_id: str | None = Field(default=None, description="Filter events by listing ID.")
+    action: str | None = Field(default=None, description="Filter by action type (view/click/favorite/dismiss).")
+    limit: int = Field(default=25, ge=1, le=200)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -81,6 +105,40 @@ def build_tool_descriptor() -> types.Tool:
             openWorldHint=False,
         ),
         _meta=build_tool_meta(),
+    )
+
+
+def build_record_pref_descriptor() -> types.Tool:
+    return types.Tool(
+        name=RECORD_PREF_TOOL_NAME,
+        title="Record user preference",
+        description=(
+            "Log a user interaction with a listing (view, click, favorite, dismiss). "
+            "Call this whenever the user expresses interest in or rejects a specific listing."
+        ),
+        inputSchema=RecordPreferenceInput.model_json_schema(),
+        annotations=types.ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            openWorldHint=False,
+        ),
+    )
+
+
+def build_get_prefs_descriptor() -> types.Tool:
+    return types.Tool(
+        name=GET_PREFS_TOOL_NAME,
+        title="Get user preferences",
+        description=(
+            "Retrieve past user interactions with listings. "
+            "Use this to personalise future searches based on what the user liked or dismissed."
+        ),
+        inputSchema=GetUserPreferencesInput.model_json_schema(),
+        annotations=types.ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            openWorldHint=False,
+        ),
     )
 
 
@@ -139,7 +197,11 @@ mcp = FastMCP(
 
 @mcp._mcp_server.list_tools()
 async def _list_tools() -> list[types.Tool]:
-    return [build_tool_descriptor()]
+    return [
+        build_tool_descriptor(),
+        build_record_pref_descriptor(),
+        build_get_prefs_descriptor(),
+    ]
 
 
 @mcp._mcp_server.list_resources()
@@ -179,43 +241,92 @@ async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerR
 
 
 async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
-    if req.params.name != SEARCH_TOOL_NAME:
+    name = req.params.name
+    args = req.params.arguments or {}
+
+    # ── search_listings ──────────────────────────────────────────────────────
+    if name == SEARCH_TOOL_NAME:
+        try:
+            search_input = SearchListingsInput.model_validate(args)
+        except ValidationError as exc:
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"Invalid input: {exc.errors()}")],
+                    isError=True,
+                )
+            )
+        response_payload = await get_listings_api_client().search_listings(
+            query=search_input.query,
+            limit=search_input.limit,
+            offset=search_input.offset,
+        )
+        return types.ServerResult(
+            build_search_tool_result(query=search_input.query, payload=response_payload)
+        )
+
+    # ── record_preference ────────────────────────────────────────────────────
+    if name == RECORD_PREF_TOOL_NAME:
+        try:
+            pref_input = RecordPreferenceInput.model_validate(args)
+        except ValidationError as exc:
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"Invalid input: {exc.errors()}")],
+                    isError=True,
+                )
+            )
+        try:
+            event_id = record_event(
+                listing_id=pref_input.listing_id,
+                action=pref_input.action,
+                query=pref_input.query,
+                session_id=pref_input.session_id,
+            )
+            msg = f"Recorded '{pref_input.action}' for listing {pref_input.listing_id} (event #{event_id})."
+        except ValueError as exc:
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=str(exc))],
+                    isError=True,
+                )
+            )
         return types.ServerResult(
             types.CallToolResult(
-                content=[types.TextContent(type="text", text=f"Unknown tool: {req.params.name}")],
-                isError=True,
+                content=[types.TextContent(type="text", text=msg)],
+                structuredContent={"event_id": event_id, "action": pref_input.action, "listing_id": pref_input.listing_id},
             )
         )
 
-    try:
-        search_input = SearchListingsInput.model_validate(req.params.arguments or {})
-    except ValidationError as exc:
+    # ── get_user_preferences ─────────────────────────────────────────────────
+    if name == GET_PREFS_TOOL_NAME:
+        try:
+            prefs_input = GetUserPreferencesInput.model_validate(args)
+        except ValidationError as exc:
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"Invalid input: {exc.errors()}")],
+                    isError=True,
+                )
+            )
+        events = get_events(
+            session_id=prefs_input.session_id,
+            listing_id=prefs_input.listing_id,
+            action=prefs_input.action,
+            limit=prefs_input.limit,
+        )
+        summary = f"Found {len(events)} event(s)."
         return types.ServerResult(
             types.CallToolResult(
-                content=[types.TextContent(type="text", text=f"Invalid input: {exc.errors()}")],
-                isError=True,
+                content=[types.TextContent(type="text", text=summary)],
+                structuredContent={"events": events, "count": len(events)},
             )
         )
 
-    logger.info(
-        "MCP tool call: %s query=%r limit=%s offset=%s",
-        SEARCH_TOOL_NAME,
-        search_input.query,
-        search_input.limit,
-        search_input.offset,
-    )
-    response_payload = await get_listings_api_client().search_listings(
-        query=search_input.query,
-        limit=search_input.limit,
-        offset=search_input.offset,
-    )
-    logger.info(
-        "MCP tool result: %s returned %s listings",
-        SEARCH_TOOL_NAME,
-        len(response_payload.get("listings", [])),
-    )
     return types.ServerResult(
-        build_search_tool_result(query=search_input.query, payload=response_payload)
+        types.CallToolResult(
+            content=[types.TextContent(type="text", text=f"Unknown tool: {name}")],
+            isError=True,
+        )
     )
 
 
