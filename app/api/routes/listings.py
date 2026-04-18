@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter
 
 from app.config import get_settings
@@ -12,6 +14,7 @@ from app.models.schemas import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -22,18 +25,29 @@ def health() -> HealthResponse:
 @router.post("/listings", response_model=ListingsResponse)
 def listings(request: ListingsQueryRequest) -> ListingsResponse:
     settings = get_settings()
-    return query_from_text(
+    logger.info(
+        "API /listings query=%r limit=%s offset=%s",
+        request.query,
+        request.limit,
+        request.offset,
+    )
+    response = query_from_text(
         db_path=settings.db_path,
         query=request.query,
         limit=request.limit,
         offset=request.offset,
     )
+    logger.info("API /listings returned %s listings", len(response.listings))
+    return response
 
 
 @router.post("/listings/search/filter", response_model=ListingsResponse)
 def listings_search(request: ListingsSearchRequest) -> ListingsResponse:
     settings = get_settings()
-    return query_from_filters(
+    logger.info("API /listings/search/filter invoked")
+    response = query_from_filters(
         db_path=settings.db_path,
         hard_facts=request.hard_filters,
     )
+    logger.info("API /listings/search/filter returned %s listings", len(response.listings))
+    return response

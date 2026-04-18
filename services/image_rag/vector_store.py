@@ -37,6 +37,7 @@ class MilvusLiteStore:
 
     def ensure_collection(self, *, dimension: int) -> None:
         if self._client.has_collection(collection_name=self._collection_name):
+            self._ensure_embedding_index()
             self._safe_load_collection()
             return
 
@@ -53,19 +54,11 @@ class MilvusLiteStore:
         schema.add_field(field_name="model_version", datatype=DataType.VARCHAR, max_length=128)
         schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=dimension)
 
-        index_params = self._client.prepare_index_params()
-        index_params.add_index(field_name="id", index_type="STL_SORT")
-        index_params.add_index(
-            field_name="embedding",
-            index_type="AUTOINDEX",
-            metric_type="COSINE",
-        )
-
         self._client.create_collection(
             collection_name=self._collection_name,
             schema=schema,
-            index_params=index_params,
         )
+        self._ensure_embedding_index()
         self._safe_load_collection()
 
     def upsert(self, records: list[VectorImageRecord]) -> None:
@@ -161,6 +154,25 @@ class MilvusLiteStore:
             self._client.load_collection(collection_name=self._collection_name)
         except Exception:
             return
+
+    def _ensure_embedding_index(self) -> None:
+        existing = self._client.list_indexes(
+            collection_name=self._collection_name,
+            field_name="embedding",
+        )
+        if existing:
+            return
+
+        index_params = self._client.prepare_index_params()
+        index_params.add_index(
+            field_name="embedding",
+            index_type="AUTOINDEX",
+            metric_type="COSINE",
+        )
+        self._client.create_index(
+            collection_name=self._collection_name,
+            index_params=index_params,
+        )
 
 
 def _chunked(values: list[str], size: int) -> list[list[str]]:
