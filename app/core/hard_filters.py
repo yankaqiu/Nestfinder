@@ -130,7 +130,17 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
             object_category,
             object_type,
             original_url,
-            images_json
+            images_json,
+            floor_level,
+            year_built,
+            renovation_year,
+            is_furnished,
+            price_per_sqm,
+            price_vs_city_median,
+            municipality,
+            lake_distance_m,
+            is_urban,
+            text_features_json
         FROM listings
     """
 
@@ -171,10 +181,22 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
 def _parse_row(row: dict[str, Any]) -> dict[str, Any]:
     features_json = row.pop("features_json", "[]")
     images_json = row.pop("images_json", None)
+    text_features_json = row.pop("text_features_json", None)
     try:
         row["features"] = json.loads(features_json) if features_json else []
     except json.JSONDecodeError:
         row["features"] = []
+
+    if text_features_json:
+        try:
+            text_feats = json.loads(text_features_json)
+            if isinstance(text_feats, dict):
+                for feat_name, feat_val in text_feats.items():
+                    if feat_val and feat_name not in row["features"]:
+                        row["features"].append(feat_name)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     row["image_urls"] = _extract_image_urls(images_json)
     row["hero_image_url"] = row["image_urls"][0] if row["image_urls"] else None
     return row

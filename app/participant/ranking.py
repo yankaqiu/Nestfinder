@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date, timedelta
 from typing import Any
 
 from app.models.schemas import ListingData, RankedListingResult
 
 # ---------------------------------------------------------------------------
-# Signal matchers: each maps a soft signal name → a function that checks
+# Signal matchers: each maps a soft signal name to a function that checks
 # whether a candidate listing matches that signal.
-# Returns True/False. We rely on description text (100% coverage),
-# features list (~50%), and area (~81%). Distance columns are too sparse
-# (1-2%) to be primary signals but are used when available.
+# Returns True/False.
+#
+# Strategy: prefer enriched DB columns (data-driven), fall back to
+# text regex when enrichment data is missing.
 # ---------------------------------------------------------------------------
 
 def _text(c: dict) -> str:
@@ -35,6 +37,37 @@ def _dist_lt(c: dict, field: str, threshold: float) -> bool | None:
         return None
 
 
+def _enriched_lt(c: dict, field: str, threshold: float) -> bool | None:
+    """Check enriched numeric column < threshold. None if missing."""
+    val = c.get(field)
+    if val is None:
+        return None
+    try:
+        return float(val) < threshold
+    except (TypeError, ValueError):
+        return None
+
+
+def _enriched_gt(c: dict, field: str, threshold: float) -> bool | None:
+    val = c.get(field)
+    if val is None:
+        return None
+    try:
+        return float(val) > threshold
+    except (TypeError, ValueError):
+        return None
+
+
+def _enriched_gte(c: dict, field: str, threshold: float) -> bool | None:
+    val = c.get(field)
+    if val is None:
+        return None
+    try:
+        return float(val) >= threshold
+    except (TypeError, ValueError):
+        return None
+
+
 _SIGNAL_MATCHERS: dict[str, Any] = {}
 
 
@@ -43,28 +76,49 @@ def _r(pattern: str) -> re.Pattern:
 
 
 def _register_signals():
-    """Build the signal matcher table."""
+    """Build the signal matcher table with enriched-data-first matching."""
     m = _SIGNAL_MATCHERS
 
-    m["bright"] = lambda c: bool(_r(
-        r"\bhell[e]?\b|\bbright\b|\blumineu[xs]\b|\bsonnig\b|\bsunny\b|\blichtdurchflutet\b|\blicht\b"
-    ).search(_text(c)))
+    # --- Enriched + regex: bright ---
+    # Higher floors get more light; text fallback for all
+    m["bright"] = lambda c: (
+        (_enriched_gte(c, "floor_level", 3) is True)
+        or bool(_r(
+            r"\bhell[e]?\b|\bbright\b|\blumineu[xs]\b|\bsonnig\b|\bsunny\b|\blichtdurchflutet\b|\blicht\b"
+        ).search(_text(c)))
+    )
 
-    m["quiet"] = lambda c: bool(_r(
-        r"\bruhig\b|\bquiet\b|\bcalme\b|\bstill[e]?\s+lage\b|\bruhige\s+lage\b"
-    ).search(_text(c))) or _dist_lt(c, "distance_shop", 500) is True
+    m["quiet"] = lambda c: (
+        bool(_r(
+            r"\bruhig\b|\bquiet\b|\bcalme\b|\bstill[e]?\s+lage\b|\bruhige\s+lage\b"
+        ).search(_text(c)))
+        or _dist_lt(c, "distance_shop", 500) is True
+        or (c.get("is_urban") == 0)
+    )
 
-    m["modern"] = lambda c: bool(_r(
-        r"\bmodern[e]?\b|\brenoviert\b|\bsaniert\b|\bneuwertig\b|\bcontemporary\b|\bstylish\b|\bdesign\b"
-    ).search(_text(c)))
+    # --- Enriched: modern (year_built > 2010 or renovation < 10 yrs) ---
+    m["modern"] = lambda c: (
+        (_enriched_gt(c, "year_built", 2010) is True)
+        or (_enriched_gt(c, "renovation_year", 2015) is True)
+        or bool(_r(
+            r"\bmodern[e]?\b|\brenoviert\b|\bsaniert\b|\bneuwertig\b|\bcontemporary\b|\bstylish\b|\bdesign\b"
+        ).search(_text(c)))
+    )
 
-    m["views"] = lambda c: bool(_r(
-        r"\baussicht\b|\bview\b|\bvue\b|\bpanorama\b|\bseeblick\b|\bbergblick\b|\bweitsicht\b|\bfernblick\b"
-    ).search(_text(c)))
+    m["views"] = lambda c: (
+        (_enriched_gte(c, "floor_level", 5) is True)
+        or bool(_r(
+            r"\baussicht\b|\bview\b|\bvue\b|\bpanorama\b|\bseeblick\b|\bbergblick\b|\bweitsicht\b|\bfernblick\b"
+        ).search(_text(c)))
+    )
 
-    m["near_lake"] = lambda c: bool(_r(
-        r"\bseenähe\b|\bnear.*lake\b|\blac\b|\bseeblick\b|\bam\s+see\b|\blake\s+view\b|\bzürichsee\b|\bgenfersee\b|\bvierwaldstättersee\b"
-    ).search(_text(c)))
+    # --- Enriched: near_lake (lake_distance_m) + text fallback ---
+    m["near_lake"] = lambda c: (
+        (_enriched_lt(c, "lake_distance_m", 2000) is True)
+        or bool(_r(
+            r"\bseenähe\b|\bnear.*lake\b|\blac\b|\bseeblick\b|\bam\s+see\b|\blake\s+view\b|\bzürichsee\b|\bgenfersee\b|\bvierwaldstättersee\b"
+        ).search(_text(c)))
+    )
 
     m["public_transport"] = lambda c: (
         _dist_lt(c, "distance_public_transport", 500) is True
@@ -75,9 +129,14 @@ def _register_signals():
 
     m["short_commute"] = m["public_transport"]
 
-    m["furnished"] = lambda c: bool(_r(
-        r"\bmöbliert\b|\bfurnished\b|\bmeublé\b|\bwith\s+furniture\b"
-    ).search(_text(c)))
+    # --- Enriched: furnished (is_furnished column) ---
+    m["furnished"] = lambda c: (
+        (c.get("is_furnished") == 1)
+        or _has_feature(c, "furnished")
+        or bool(_r(
+            r"\bmöbliert\b|\bfurnished\b|\bmeublé\b|\bwith\s+furniture\b"
+        ).search(_text(c)))
+    )
 
     m["family_friendly"] = lambda c: (
         _has_feature(c, "child_friendly")
@@ -98,25 +157,38 @@ def _register_signals():
         or bool(_r(r"\bschule\b|\bschool\b|\bécole\b|\bgute\s+schulen\b").search(_text(c)))
     )
 
-    m["green_area"] = lambda c: bool(_r(
-        r"\bpark\b|\bgarten\b|\bgarden\b|\bgrün[e]?\b|\bwald\b|\bnatur\b|\bforest\b|\bverdure\b"
-    ).search(_text(c)))
+    m["green_area"] = lambda c: (
+        bool(_r(
+            r"\bpark\b|\bgarten\b|\bgarden\b|\bgrün[e]?\b|\bwald\b|\bnatur\b|\bforest\b|\bverdure\b"
+        ).search(_text(c)))
+    )
 
-    m["lively"] = lambda c: bool(_r(
-        r"\bbelebt\b|\blively\b|\bvibrant\b|\banimé\b|\bgastronomie\b|\brestaurant\b|\bcafé\b|\bcafe\b|\bausgang\b|\bnachtleben\b|\bbar[s]?\b"
-    ).search(_text(c)))
+    m["lively"] = lambda c: (
+        (c.get("is_urban") == 1)
+        or bool(_r(
+            r"\bbelebt\b|\blively\b|\bvibrant\b|\banimé\b|\bgastronomie\b|\brestaurant\b|\bcafé\b|\bcafe\b|\bausgang\b|\bnachtleben\b|\bbar[s]?\b"
+        ).search(_text(c)))
+    )
 
-    m["affordable"] = lambda c: bool(_r(
-        r"\bgünstig\b|\baffordable\b|\bpreiswert\b|\bcheap\b|\bbon\s+marché\b"
-    ).search(_text(c)))
+    # --- Enriched: affordable (price_vs_city_median) ---
+    m["affordable"] = lambda c: (
+        (_enriched_lt(c, "price_vs_city_median", 0.85) is True)
+        or bool(_r(
+            r"\bgünstig\b|\baffordable\b|\bpreiswert\b|\bcheap\b|\bbon\s+marché\b"
+        ).search(_text(c)))
+    )
 
     m["spacious"] = lambda c: _area_gte(c, 80) or bool(_r(
         r"\bgeräumig\b|\bspacious\b|\bgrosszügig\b|\bviel\s+platz\b"
     ).search(_text(c)))
 
-    m["well_maintained"] = lambda c: bool(_r(
-        r"\bgepflegt\b|\bwell.maintained\b|\bsauber\b|\bpropre\b|\brefurbished\b|\btop\s+zustand\b"
-    ).search(_text(c)))
+    # --- Enriched: well_maintained (renovation_year recent) ---
+    m["well_maintained"] = lambda c: (
+        (_enriched_gt(c, "renovation_year", 2018) is True)
+        or bool(_r(
+            r"\bgepflegt\b|\bwell.maintained\b|\bsauber\b|\bpropre\b|\brefurbished\b|\btop\s+zustand\b"
+        ).search(_text(c)))
+    )
 
     m["outdoor_space"] = lambda c: (
         _has_feature(c, "balcony")
@@ -139,8 +211,33 @@ def _register_signals():
     )
 
     m["private_laundry"] = lambda c: (
-        _has_feature(c, "private_laundry")
+        _has_feature(c, "private_laundry") or _has_feature(c, "washing_machine")
         or bool(_r(r"\bwaschmaschine\b|\bwasher\b|\bwaschturm\b|\bprivate\s+laundry\b|\beigene\s+waschmaschine\b").search(_text(c)))
+    )
+
+    m["elevator"] = lambda c: (
+        _has_feature(c, "elevator")
+        or bool(_r(r"\blift\b|\belevator\b|\baufzug\b|\bascenseur\b").search(_text(c)))
+    )
+
+    m["garden"] = lambda c: (
+        _has_feature(c, "garden")
+        or bool(_r(r"\bgarten\b|\bgarden\b|\bjardin\b|\bgiardino\b").search(_text(c)))
+    )
+
+    m["dishwasher"] = lambda c: (
+        _has_feature(c, "dishwasher")
+        or bool(_r(r"\bgeschirrspüler\b|\bdishwasher\b|\blave.vaisselle\b|\babwaschmaschine\b|\bspülmaschine\b").search(_text(c)))
+    )
+
+    m["cellar"] = lambda c: (
+        _has_feature(c, "cellar")
+        or bool(_r(r"\bkeller\b|\bcellar\b|\bcave\b|\bcantina\b|\bkellerabteil\b").search(_text(c)))
+    )
+
+    m["washing_machine"] = lambda c: (
+        _has_feature(c, "washing_machine") or _has_feature(c, "private_laundry")
+        or bool(_r(r"\bwaschmaschine\b|\bwashing\s+machine\b|\blave.linge\b|\bwaschturm\b|\bbuanderie\b").search(_text(c)))
     )
 
     m["modern_kitchen"] = lambda c: bool(_r(
@@ -156,8 +253,10 @@ def _register_signals():
         or bool(_r(r"\bminergie\b|\benergy.efficient\b|\bniedrigenergie\b").search(_text(c)))
     )
 
+    # --- Enriched: new_build (year_built >= 2022) ---
     m["new_build"] = lambda c: (
-        _has_feature(c, "new_build")
+        (_enriched_gte(c, "year_built", 2022) is True)
+        or _has_feature(c, "new_build")
         or bool(_r(r"\bneubau\b|\bnew\s+build\b|\bnewly\s+built\b|\berstvermietung\b|\berst(e|-)bezug\b").search(_text(c)))
     )
 
@@ -176,10 +275,24 @@ def _register_signals():
         r"\bhb\b|\bhauptbahnhof\b|\bmain\s+station\b|\bgare\s+centrale\b|\bam\s+bahnhof\b|\bbeim\s+bahnhof\b"
     ).search(_text(c)))
 
-    m["specific_move_in"] = lambda c: False
+    # --- Enriched: specific_move_in (available_from date matching) ---
+    m["specific_move_in"] = lambda c: _check_available_soon(c)
 
 
 _register_signals()
+
+
+def _check_available_soon(c: dict) -> bool:
+    """True if the listing is available within 3 months."""
+    avail = c.get("available_from")
+    if not avail:
+        return False
+    try:
+        avail_date = date.fromisoformat(str(avail))
+        cutoff = date.today() + timedelta(days=90)
+        return avail_date <= cutoff
+    except (ValueError, TypeError):
+        return False
 
 
 def _area_gte(c: dict, min_sqm: float) -> bool:
