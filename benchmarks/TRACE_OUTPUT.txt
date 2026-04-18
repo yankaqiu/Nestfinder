@@ -1,0 +1,481 @@
+
+========================================================================================================================
+  PIPELINE TRACE  —  22,819 total listings in DB
+========================================================================================================================
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [german_zurich_3.5_rooms]
+  Query: Ruhige 3.5-Zimmer Wohnung in Zürich unter CHF 2500
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich'], 'max_price': 2500, 'min_rooms': 3.5, 'max_rooms': 3.5}
+  Soft signals : quiet=1.0
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 63 (hard) → 63 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    1.00  Zürich             3.5    1,800  quiet                               [Tauschwohnung] Schöne günstige Wohnung 
+     2    1.00  Zürich             3.5    2,200  quiet                               3.5 furnished apartment
+     3    1.00  Zürich             3.5    2,195  quiet                               Wohnen in grünem Wohnquartier
+     4    1.00  Zürich             3.5    2,199  quiet                               [TEST] Wunderschöne Wohnung im Kreis 6
+     5    0.00  Zürich             3.5    2,188  —                                   3.5 Zimmerwohnung in Kreis 10
+     6    0.00  Zürich             3.5    1,272  —                                   3.5 Zimmerwohnung in Kreis 5
+     7    0.00  Zürich             3.5    2,088  —                                   3.5 Zimmerwohnung in Kreis 9
+     8    0.00  Zürich             3.5    2,500  —                                   3½ ZI-WOHNUNG IN ZÜRICH - KREIS 11 OERLI
+     9    0.00  Zürich             3.5    1,921  —                                   3.5 Zi Wohnung
+    10    0.00  Zürich             3.5    2,100  —                                   Tauschimmobilie Einladende 3.5-Zimmer-Wo
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [english_basel_bedrooms]
+  Query: 2 bedroom flat in Basel under CHF 3500
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Basel'], 'max_price': 3500, 'min_rooms': 2.0, 'max_rooms': 2.0}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 32 (hard) → 32 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Basel              2.0    2,735  —                                   Ladenfläche am Spalenring zu vermieten –
+     2    0.00  Basel              2.0    1,310  —                                   Moderne 2-Zimmer-Wohnung mit Balkon am W
+     3    0.00  Basel              2.0    1,317  —                                   2-Zimmerwohnung  in der Nähe des Musical
+     4    0.00  Basel              2.0    2,115  —                                   GROSSZÜGIGE WOHNUNG NÄHE GROSSPETER AREA
+     5    0.00  Basel              2.0    1,410  —                                   2-Zimmerwohnung im St. Johannquartier mi
+     6    0.00  Basel              2.0    1,390  —                                   Gemütliche Dachwohnung im Gotthelfquarti
+     7    0.00  Basel              2.0    1,650  —                                   2-Zimmer-Wohnung mit zwei Balkonen, Whir
+     8    0.00  Basel              2.0    1,526  —                                   Charmante Altbauwohnung sucht neuen Miet
+     9    0.00  Basel              2.0      984  —                                   2 Zimmerwohnung an ruhiger Seitenstrasse
+    10    0.00  Basel              2.0    1,270  —                                   Hier findet Ihre Wohnungssuche ein Ende!
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [multi_city_german]
+  Query: Ich suche eine Wohnung im Raum Zürich, Dübendorf oder Wallisellen, idealerweise 2.5 bis 3.5 Zimmer, ab 70 m², Budget bis 3100 CHF, max 25 Minuten mit dem ÖV bis Stadelhofen
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich', 'Dübendorf', 'Wallisellen'], 'max_price': 3100, 'min_rooms': 2.5, 'max_rooms': 3.5}
+  Soft signals : public_transport=1.0, short_commute=1.2
+  Soft extras  : {'max_commute_minutes': 25, 'commute_destination': 'Stadelhofen', 'preferred_min_area_sqm': 70}
+  Pipeline     : 22,819 → 327 (hard) → 327 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    2.50  Dübendorf          2.5    3,000  public_transport, short_commute, area_pref Exklusive 2.5-Zimmer-Design-Neubauwohnun
+     2    2.50  Wallisellen        2.5      140  public_transport, short_commute, area_pref KLIMATISIERT, MODERN UND VIELE PARKPLÄTZ
+     3    2.50  Wallisellen        3.5    2,950  public_transport, short_commute, area_pref Gut erschlossen im Grünen
+     4    2.50  Zürich             3.0    2,500  public_transport, short_commute, area_pref Temporär, möbliert: 3-Zimmer-Wohnung im 
+     5    2.50  Zürich             3.5    2,985  public_transport, short_commute, area_pref [Tauschwohnung] Grosse, moderne 105m2 3.
+     6    2.50  Dübendorf          2.5    2,850  public_transport, short_commute, area_pref Modern and fully furnished 2.5-room apar
+     7    2.50  Zürich             3.5    2,943  public_transport, short_commute, area_pref 3.5 rooms appartment in Zurich-Oerlikon 
+     8    2.50  Wallisellen        2.5    2,200  public_transport, short_commute, area_pref Moderne Loft-Wohnung mit hohen Decken & 
+     9    2.50  Zürich             3.5    3,065  public_transport, short_commute, area_pref Wunderschöne, zentral gelegene, grosszüg
+    10    2.50  Dübendorf          2.5    1,960  public_transport, short_commute, area_pref Moderne 2.5-Zimmer-Wohnung mit Weitsicht
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [family_lake_kilchberg]
+  Query: Wir suchen als Familie zu dritt etwas im Raum Kilchberg, Rüschlikon oder Thalwil, am liebsten nahe am See oder mit schneller Verbindung nach Zürich, mindestens 3.5 Zimmer, ab 90 m², Budget bis 4300 CHF, gern mit Balkon / Terrasse, Lift, Keller
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Kilchberg', 'Rüschlikon', 'Thalwil'], 'max_price': 4300, 'min_rooms': 3.5, 'features': ['elevator']}
+  Soft signals : near_lake=0.6, public_transport=1.0, short_commute=1.2, family_friendly=0.8, spacious=0.6, balcony=0.8, well_maintained=0.5
+  Soft extras  : {'max_commute_minutes': 30, 'commute_destination': 'Zurich', 'preferred_min_area_sqm': 90}
+  Pipeline     : 22,819 → 2 (hard) → 2 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    3.90  Thalwil            3.5    3,600  public_transport, short_commute, spacious, balcony, area_pref Wohlfühloase im Zentrum von Thalwil
+     2    3.00  Thalwil            3.5    2,800  public_transport, short_commute, balcony Möblierte 3.5-Zimmer-Wohnung in Thalwil,
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [english_zurich_area_commute]
+  Query: I'm looking for an apartment in the greater Zurich area, ideally somewhere like Oerlikon, Altstetten, or Schlieren, with at least 60 sqm, preferably 2 to 3 rooms, a commute under 30 minutes to Zurich HB door to door
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich', 'Oerlikon', 'Altstetten', 'Schlieren'], 'min_rooms': 2.0, 'max_rooms': 3.0}
+  Soft signals : short_commute=1.2, near_hb=1.0, spacious=0.6
+  Soft extras  : {'max_commute_minutes': 30, 'commute_destination': 'HB', 'preferred_min_area_sqm': 60}
+  Pipeline     : 22,819 → 260 (hard) → 259 (soft filter, -1) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    3.10  Zürich             3.0    4,100  short_commute, near_hb, spacious, area_pref ? 2-Zimmer-Wohnung Modern zur Miete in Z
+     2    3.10  Zürich             2.5    2,950  short_commute, near_hb, spacious, area_pref Grosszügig wohnen im Kreis 3 - befristet
+     3    3.10  Zürich             2.5    2,200  short_commute, near_hb, spacious, area_pref Ruhige 2.5-Zimmer-Wohnung nahe Bhf. Alts
+     4    2.80  Schlieren          2.5    1,735  short_commute, near_hb, spacious    Wohnen direkt im Rietpark
+     5    2.80  Zürich             2.0    2,050  short_commute, near_hb, spacious    Furnished 2-room apartment in Zurich  sh
+     6    2.50  Zürich             2.5    2,430  short_commute, near_hb, area_pref   Untermiete Befristet 2 1/2 Zimmer
+     7    2.50  Zürich             2.5    2,134  short_commute, near_hb, area_pref   2.5 Zimmer-Wohnung in Zurich zu vermiete
+     8    2.50  Zürich             2.5    2,300  short_commute, near_hb, area_pref   [Tauschwohnung] 2.5-Zimmer Wohnung in Kr
+     9    2.50  Zürich             2.0    2,220  short_commute, near_hb, area_pref   Charmante 2-Zimmer Wohnung an der Kornha
+    10    2.50  Zürich             2.5    2,300  short_commute, near_hb, area_pref   2.5-Zimmer Wohnung in Kreis 6 zum Tausch
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [family_basel_english]
+  Query: We are a family of 3 looking around Basel for something with 2 or 3 bedrooms, ideally 85 sqm or more, budget up to CHF 3500, in an area with good schools, quiet streets, and enough nearby amenities
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Basel'], 'max_price': 3500, 'min_rooms': 2.0, 'max_rooms': 3.0}
+  Soft signals : family_friendly=0.8, good_schools=0.7, quiet=1.0, spacious=0.6, green_area=0.6
+  Soft extras  : {'preferred_min_area_sqm': 85}
+  Pipeline     : 22,819 → 116 (hard) → 116 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    3.40  Basel              3.0    1,810  family_friendly, good_schools, quiet, spacious, area_pref Gemütliche Seitenstrasse im Herzen vom M
+     2    3.10  Basel              2.0      984  family_friendly, good_schools, quiet, green_area 2 Zimmerwohnung an ruhiger Seitenstrasse
+     3    2.50  Basel              3.0    2,227  family_friendly, good_schools, quiet 3-Zimmerwohnung, 72.4 m2, 3.OG, Nähe Lan
+     4    2.50  Basel              2.0    1,390  family_friendly, good_schools, quiet Gemütliche Dachwohnung im Gotthelfquarti
+     5    2.50  Basel              3.0    1,710  family_friendly, good_schools, quiet 3-ZIMMER-WOHNUNG, 1. OG
+     6    2.50  Basel              3.0    1,240  family_friendly, good_schools, quiet Genossenschaftswohnung; tolle 3-Zimmer W
+     7    2.30  Basel              2.5    2,000  good_schools, quiet, spacious       Modern 2.5-Zimmer möblierte Wohnung mit 
+     8    1.70  Basel              2.5    1,500  good_schools, quiet                 Charmante 2,5-Zimmer-Wohnung mit Balkon 
+     9    1.60  Basel              3.0    1,760  quiet, green_area                   NATUR VOR DER TÜR, HELL UND RUHIG
+    10    1.60  Basel              2.0    1,650  quiet, green_area                   2-Zimmer-Wohnung mit zwei Balkonen, Whir
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [german_lausanne_epfl]
+  Query: Ich suche etwas Kleineres in Lausanne, möglichst in der Nähe von EPFL, gern möbliert, unter 2100 CHF, mit guter Anbindung
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Lausanne'], 'max_price': 2100}
+  Soft signals : near_epfl=1.2, furnished=0.8, public_transport=1.0
+  Soft extras  : {'commute_destination': 'EPFL', 'max_commute_minutes': 30}
+  Pipeline     : 22,819 → 253 (hard) → 221 (soft filter, -32) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    2.20  Lausanne           3.5    1,800  near_epfl, public_transport         Übernahme des Mietvertrags 1004 Lauranne
+     2    2.00  Lausanne             —    1,125  near_epfl, furnished                Très belle chambre à louer / Malley
+     3    1.80  Lausanne           1.0    1,020  furnished, public_transport         Au plein coeur de la ville et proche du 
+     4    1.80  Lausanne           1.0    1,200  furnished, public_transport         Studio mit Möbeln und Balkon in der Nähe
+     5    1.20  Lausanne           1.0    1,000  near_epfl                           Lausanne, Avenue de Grammont 4, joli 1 p
+     6    1.20  Lausanne           2.5    1,705  near_epfl                           Charmant appartement de 2.5 pièces cherc
+     7    1.00  Lausanne           3.0    2,030  public_transport                    Charmantes 3-Zimmer-Wohnung im Herzen vo
+     8    1.00  Lausanne           2.0    2,100  public_transport                    Großes 2.5-Zimmer-Apartment
+     9    1.00  Lausanne             —      140  public_transport                    A 50 m du parking du Vélodrome !
+    10    1.00  Lausanne             —      140  public_transport                    Proche du centre-ville
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [english_geneva_residential]
+  Query: I'm looking for a place near Geneva city center but not right in the busiest part, ideally with 2 bedrooms, budget up to CHF 3600, good transport access
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Genf'], 'max_price': 3600, 'min_rooms': 2.0, 'max_rooms': 2.0}
+  Soft signals : public_transport=1.0, quiet=1.0
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 5 (hard) → 5 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    2.00  Genf               2.0    1,850  public_transport, quiet             Zweizimmerwohnung renoviert Eaux-Vives h
+     2    0.00  Genf               2.0    2,000  —                                   Cherche sous-location ou reprise de bail
+     3    0.00  Genf               2.0    1,650  —                                   Untervermietung für einen Monat (oder we
+     4    0.00  Genf               2.0    1,400  —                                   Untervermietung 2 Zimmer
+     5    0.00  Genf               2.0    1,200  —                                   Wohnung T2 39m2 sehr gut gelegen, sofort
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [studio_lausanne]
+  Query: Studio in Lausanne under CHF 1500
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Lausanne'], 'max_price': 1500, 'min_rooms': 1.0, 'max_rooms': 1.5}
+  Soft signals : affordable=0.5
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 47 (hard) → 47 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Lausanne           1.0    1,340  —                                   Dringendes Studio zur Übernahme ab 5.2
+     2    0.00  Lausanne           1.0    1,030  —                                   Appartement d'une pièce au 4ème étage.
+     3    0.00  Lausanne           1.5    1,460  —                                   Studio spacieux dans une charmante maiso
+     4    0.00  Lausanne           1.5    1,290  —                                   Joli appartement avec jardin de 1,5 pièc
+     5    0.00  Lausanne           1.0    1,480  —                                   Appartement de 1 pièces sous-gare
+     6    0.00  Lausanne           1.0      500  —                                   Bureau 20m2
+     7    0.00  Lausanne           1.0    1,000  —                                   Lausanne, Avenue de Grammont 4, joli 1 p
+     8    0.00  Lausanne           1.0    1,330  —                                   Renovierte Studiowohnung zur Miete im St
+     9    0.00  Lausanne           1.0      800  —                                   Charmantes 1-Zimmer-Wohnung möbliert mit
+    10    0.00  Lausanne           1.0      600  —                                   Suche nach Mietstudio, Mobilhome Vaud, W
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [ambiguous_schwyz]
+  Query: 3-Zimmer Wohnung in Schwyz zu mieten
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Schwyz'], 'min_rooms': 3.0, 'max_rooms': 3.0, 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 0 (hard) → 0 (soft filter, -0) → top 10 ranked
+  TOP 10       : (no results)
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [sale_zurich]
+  Query: Haus zu kaufen in Zürich, 5 Zimmer
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich'], 'min_rooms': 5.0, 'max_rooms': 5.0, 'offer_type': 'SALE'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 0 (hard) → 0 (soft filter, -0) → top 10 ranked
+  TOP 10       : (no results)
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [vague_no_constraints]
+  Query: something nice and central
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {}
+  Soft signals : lively=0.6
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 22,819 (hard) → 21,854 (soft filter, -965) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.60  Steg VS            4.5    1,800  lively                              Charmante 4.5-Zimmer-Wohnung in historis
+     2    0.60  Rivera             4.0  750,000  lively                              Verkaufe Einfamilienhaus auf einer Ebene
+     3    0.60  Turtmann             —        —  lively                              Ihre Chance als Gastronom/in: Traditions
+     4    0.60  Cadro              1.5    1,300  lively                              Studio-Einzimmerwohnung CHF 1'300.- alle
+     5    0.60  Zürich               —    1,800  lively                              Helle 2.5-Zimmer-Wohnung in Zürich-Seeba
+     6    0.60  Zürich             2.5    2,290  lively                              Zentral gelegene Wohnung mit Terrasse im
+     7    0.60  Roche VD             —    3,600  lively                              Halle d'une surface de 240 m2 au Rez
+     8    0.60  Zürich               —        —  lively                              «Repräsentatives Büro in bevorzugter Pre
+     9    0.60  Cadro              1.5    1,500  lively                              Einzelzimmer Wohnung möbliert - RLEAR 10
+    10    0.60  Zürich             4.0    2,490  lively                              4-Zimmer-Wohnung in Seefeld für ein Jahr
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [price_range_between]
+  Query: flat in Zurich between 1500 and 2500 CHF
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich'], 'min_price': 1500, 'max_price': 2500, 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 290 (hard) → 290 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Zürich             3.0    2,330  —                                   Wohnung an ruhiger und zentraler Lage zu
+     2    0.00  Zürich             1.0    1,900  —                                   Studio Apartment for Rent  Weinbergstras
+     3    0.00  Zürich             1.0    1,500  —                                   möblierte Einzimmer-Wohnung
+     4    0.00  Zürich             2.5    2,192  —                                   2.5 Apartment in Enge for one Tenant
+     5    0.00  Zürich             2.5    2,290  —                                   Zentral gelegene Wohnung mit Terrasse im
+     6    0.00  Zürich             2.0    1,937  —                                   Repräsentative Büroräume an der Splügens
+     7    0.00  Zürich             5.5    2,262  —                                   5.5 Zimmerwohnung in Kreis 2
+     8    0.00  Zürich             3.5    2,188  —                                   3.5 Zimmerwohnung in Kreis 10
+     9    0.00  Zürich             5.5    2,042  —                                   5.5 Zimmerwohnung in Kreis 5
+    10    0.00  Zürich             4.5    1,672  —                                   4.5 Zimmerwohnung in Kreis 12
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [price_per_month]
+  Query: apartment in Basel for 2000 per month
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Basel'], 'max_price': 2000, 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 196 (hard) → 175 (soft filter, -21) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Basel              3.5    1,810  —                                   Wohnung mit toller Aussicht
+     2    0.00  Basel              3.5    1,650  —                                   ATTRAKTIVE WOHNUNG MIT VERANDA AN GUTER 
+     3    0.00  Basel              2.5    1,400  —                                   Ruhige, sonnige grosse 2.5 Zimmerwohnung
+     4    0.00  Basel              1.0    1,290  —                                   Exklusive Wohnung in Basel - Prestige & 
+     5    0.00  Basel              1.5    1,000  —                                   1½ ZI-WOHNUNG IN BASEL - ST. JOHANN, MÖB
+     6    0.00  Basel              2.5    1,840  —                                   Mögen Sie es Städtisch?
+     7    0.00  Basel              2.5    1,460  —                                   Schöne 2.5 Zimmer-Wohnung am Musical The
+     8    0.00  Basel              2.0    1,310  —                                   Moderne 2-Zimmer-Wohnung mit Balkon am W
+     9    0.00  Basel              3.0    1,760  —                                   NATUR VOR DER TÜR, HELL UND RUHIG
+    10    0.00  Basel              3.0    1,610  —                                   Charmante 3.0-Zimmer-Wohnung in bester L
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [bedroom_rooms_english]
+  Query: 2 bedroom apartment in Zurich under CHF 3000
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich'], 'max_price': 3000, 'min_rooms': 2.0, 'max_rooms': 2.0, 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 52 (hard) → 51 (soft filter, -1) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Zürich             2.0    1,937  —                                   Repräsentative Büroräume an der Splügens
+     2    0.00  Zürich             2.0    1,520  —                                   Zentrales Wohnen mitten in der Stadt Zür
+     3    0.00  Zürich             2.0    2,000  —                                   Ruhig gelegene 2-Zimmer-Wohnung mit zwei
+     4    0.00  Zürich             2.0    1,880  —                                   2-Zimmerwohnung in urbanem Quartier
+     5    0.00  Zürich             2.0    2,430  —                                   Stilvolle 2-Zimmer-Wohnung mit Balkon  A
+     6    0.00  Zürich             2.0    1,250  —                                   2 Zimmer gegen grösser
+     7    0.00  Zürich             2.0    1,250  —                                   [Tauschwohnung] 2 Zimmer gegen grösser
+     8    0.00  Zürich             2.0    2,220  —                                   Charmante 2-Zimmer Wohnung an der Kornha
+     9    0.00  Zürich             2.0    1,870  —                                   [Tauschwohnung] 2.5-Zi-Whg an der Bäcker
+    10    0.00  Zürich             2.0    1,730  —                                   Studio-like 2-room with private bath in 
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [bed_abbreviation]
+  Query: 3 bed flat in Lausanne
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Lausanne'], 'min_rooms': 3.0, 'max_rooms': 3.0, 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 23 (hard) → 23 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Lausanne           3.0    2,030  —                                   Charmantes 3-Zimmer-Wohnung im Herzen vo
+     2    0.00  Lausanne           3.0    3,350  —                                   Magnifique appartement de 3.5 pièces en 
+     3    0.00  Lausanne           3.0        —  —                                   Visite groupée le jeudi 18 décembre 2025
+     4    0.00  Lausanne           3.0        —  —                                   Magnifique appartement calme de 3 pièces
+     5    0.00  Lausanne           3.0    1,718  —                                   Appartement für Senioren und Menschen mi
+     6    0.00  Lausanne           3.0    2,300  —                                   Prachtvolle Wohnung mit Aussicht
+     7    0.00  Lausanne           3.0        —  —                                   Quartier tranquille et proche de toutes 
+     8    0.00  Lausanne           3.0    1,510  —                                   A louer sans caution - Logement au coeur
+     9    0.00  Lausanne           3.0    1,730  —                                   Appartement de 3 pièces – Lausanne
+    10    0.00  Lausanne           3.0    2,645  —                                   Charmant appartement de 3 pièces proche 
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [french_3_pieces_geneva]
+  Query: Je cherche un appartement 3 pièces à Genève, lumineux, moins de 2500 CHF
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Genf'], 'max_price': 2500, 'min_rooms': 3.0, 'max_rooms': 3.0}
+  Soft signals : bright=1.0
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 3 (hard) → 3 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    1.00  Genf               3.0    1,832  bright                              Wohnung 3 Zimmer - Hell und geräumig
+     2    0.00  Genf               3.0    1,800  —                                   Übernahme des Mietvertrags 1. Juni - 3,5
+     3    0.00  Genf               3.0    2,420  —                                   Sous location 3 pièces aux Paquis
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [italian_lugano]
+  Query: Cerco un appartamento a Lugano, 3 locali, massimo 2000 CHF
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Lugano'], 'max_price': 2000, 'min_rooms': 3.0, 'max_rooms': 3.0}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 4 (hard) → 4 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Lugano             3.0      900  —                                   Lugano-Zentrum, 3 Räume mit Hausmeister-
+     2    0.00  Lugano             3.0    1,600  —                                   Appartamento a Lugano da subito
+     3    0.00  Lugano             3.0    1,900  —                                   Wohnung mit Möbeln in Lugano mit Seeblic
+     4    0.00  Lugano             3.0    1,620  —                                   Wohnung mit 3 Zimmern und Balkon in der 
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [postal_code_zurich]
+  Query: Wohnung in 8001 Zürich, 3 Zimmer
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'postal_code': ['8001'], 'min_rooms': 3.0, 'max_rooms': 3.0}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 0 (hard) → 0 (soft filter, -0) → top 10 ranked
+  TOP 10       : (no results)
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [area_hard_constraint]
+  Query: mindestens 80 m² Wohnung in Zürich zu mieten
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich'], 'offer_type': 'RENT'}
+  Soft signals : (none)
+  Soft extras  : {'preferred_min_area_sqm': 80}
+  Pipeline     : 22,819 → 824 (hard) → 756 (soft filter, -68) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.30  Zürich             4.5    3,910  area_pref                           Modernes Wohnen im Guggachpark
+     2    0.30  Zürich             2.5    2,990  area_pref                           DIREKT beim HB in Zürich (Kr 5) BEFRISTE
+     3    0.30  Zürich             2.0    1,937  area_pref                           Repräsentative Büroräume an der Splügens
+     4    0.30  Zürich             4.0        —  area_pref                           Elegantes 4-Zimmer-Wohnung mit Kamin und
+     5    0.30  Zürich             3.5    2,635  area_pref                           3.5 Zimmerwohnung (Attika) im Herzen von
+     6    0.30  Zürich             4.0    2,490  area_pref                           4-Zimmer-Wohnung in Seefeld für ein Jahr
+     7    0.30  Zürich             3.5    5,300  area_pref                           Schönes möbliertes Apartment - 2 Schlafz
+     8    0.30  Zürich             3.5    3,375  area_pref                           3½ ZI-WOHNUNG IN ZÜRICH - KREIS 11 SEEBA
+     9    0.30  Zürich             3.5    3,125  area_pref                           3½ ZI-WOHNUNG IN ZÜRICH - KREIS 2, MÖBLI
+    10    0.30  Zürich             4.0    4,750  area_pref                           Charmante 4-Zimmer Jugendstilwohnung mit
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [house_type_zug]
+  Query: Einfamilienhaus in Zug zu kaufen
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zug'], 'offer_type': 'SALE'}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 0 (hard) → 0 (soft filter, -0) → top 10 ranked
+  TOP 10       : (no results)
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [multi_feature_elevator_pets]
+  Query: Wohnung mit Lift und Haustiere erlaubt in Bern
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Bern'], 'features': ['elevator', 'pets_allowed'], 'offer_type': 'RENT'}
+  Soft signals : pets_allowed=0.5
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 33 (hard) → 33 (soft filter, -0) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.50  Bern               4.5    1,720  pets_allowed                        Ihr neues Zuhause!
+     2    0.50  Bern               1.0    1,030  pets_allowed                        Ruhige 1-Zimmer-Wohnung im Marzili-Quart
+     3    0.50  Bern               4.5    2,100  pets_allowed                        4 ½ Zimmer-Wohnung, 3015 Bern
+     4    0.50  Bern               3.0    1,860  pets_allowed                        Wohnen im Monbijou... 3-Zimmerwohnung su
+     5    0.50  Bern               2.5    1,386  pets_allowed                        Wohnen in lebendigem Stadtquartier
+     6    0.50  Bern               2.5        —  pets_allowed                        Charmante 2.5-Zimmer-Wohnung mit Balkon 
+     7    0.50  Bern               4.5    2,000  pets_allowed                        Leben im familienfreundlichen Wittikofen
+     8    0.50  Bern               1.5    1,290  pets_allowed                        1.5-Zimmer Loft-Wohnung
+     9    0.50  Bern               3.5    1,860  pets_allowed                        ERSTVERMIETUNG: 3,5-Zimmerwohnung mit Ba
+    10    0.50  Bern               3.5    2,124  pets_allowed                        3½ ZI-WOHNUNG IN BERN - BREITENRAIN, MÖB
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [budget_up_to]
+  Query: apartment in Bern, budget up to CHF 2800, 3 rooms
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Bern'], 'max_price': 2800, 'min_rooms': 3.0, 'max_rooms': 3.0}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 30 (hard) → 29 (soft filter, -1) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Bern               3.0    1,758  —                                   3-Zimmerwohnung Breitenrain ab 1.4.
+     2    0.00  Bern               3.0    1,800  —                                   Charmante Dachwohnung mit Weitsicht
+     3    0.00  Bern               3.0    1,650  —                                   Charmante 3-Zimmer-Wohnung mit Balkon in
+     4    0.00  Bern               3.0    1,860  —                                   Wohnen im Monbijou... 3-Zimmerwohnung su
+     5    0.00  Bern               3.0    2,230  —                                   MIETEN OHNE KAUTION - Hier könnte Ihr Wo
+     6    0.00  Bern               3.0      337  —                                   SEHR ZENTRAL, LICHTDURCHFLUTET UND GROSS
+     7    0.00  Bern               3.0    1,883  —                                   3-Zimmerwohnung im Länggassquartier
+     8    0.00  Bern               3.0    2,208  —                                   Nachmieter*innen gesucht
+     9    0.00  Bern               3.0    1,675  —                                   Attraktive Wohnung an zentraler Lage
+    10    0.00  Bern               3.0    1,790  —                                   3-Zimmerwohnung mit Terrasse im Zentrum 
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  [minimal_city_only]
+  Query: Zürich
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+  Hard filters : {'city': ['Zürich']}
+  Soft signals : (none)
+  Soft extras  : {'max_commute_minutes': None, 'commute_destination': None, 'preferred_min_area_sqm': None}
+  Pipeline     : 22,819 → 877 (hard) → 805 (soft filter, -72) → top 10 ranked
+
+     #   Score  City             Rooms      CHF  Matched signals                     Title
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     1    0.00  Zürich             3.0    2,330  —                                   Wohnung an ruhiger und zentraler Lage zu
+     2    0.00  Zürich             3.5    3,080  —                                   Neubauwohnung in Zürich zu vermieten!
+     3    0.00  Zürich             4.5    3,910  —                                   Modernes Wohnen im Guggachpark
+     4    0.00  Zürich             3.5    3,190  —                                   Wohnen im Trendquartier - 3.5  Zimmerwoh
+     5    0.00  Zürich               —    1,050  —                                   WG Zimmer  in Zürich Top Central
+     6    0.00  Zürich             1.0    1,900  —                                   Studio Apartment for Rent  Weinbergstras
+     7    0.00  Zürich             4.0    3,480  —                                   Helle Wohnung mit gr. Dachterrasse ab 1.
+     8    0.00  Zürich             2.5    2,990  —                                   DIREKT beim HB in Zürich (Kr 5) BEFRISTE
+     9    0.00  Zürich             1.0    1,500  —                                   möblierte Einzimmer-Wohnung
+    10    0.00  Zürich             2.5    2,192  —                                   2.5 Apartment in Enge for one Tenant
+
+========================================================================================================================
+  DONE
+========================================================================================================================
