@@ -6,6 +6,9 @@ from typing import Any
 from app.models.schemas import ListingData, RankedListingResult
 from app.participant.image_rag_client import search_image_rag
 
+IMAGE_SIMILARITY_WEIGHT = 0.5
+SOFT_PREFERENCE_WEIGHT = 0.5
+
 
 def rank_listings(
     candidates: list[dict[str, Any]],
@@ -62,19 +65,36 @@ def _rank_with_image_rag(
     if not scores_by_listing:
         return None
 
-    ranked_candidates = sorted(
-        enumerate(candidates),
+    max_image_score = max((score for score, _ in scores_by_listing.values()), default=0.0)
+    max_soft_score = max((_candidate_soft_score(candidate) for candidate in candidates), default=0.0)
+
+    ranked_candidates: list[tuple[float, float, float, int, dict[str, Any], str | None]] = []
+    for index, candidate in enumerate(candidates):
+        listing_id = str(candidate["listing_id"])
+        image_score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
+        soft_score = _candidate_soft_score(candidate)
+        blended_score = _blend_rank_score(
+            image_score=image_score,
+            soft_score=soft_score,
+            max_image_score=max_image_score,
+            max_soft_score=max_soft_score,
+        )
+        ranked_candidates.append(
+            (blended_score, image_score, soft_score, index, candidate, best_image_url)
+        )
+
+    ranked_candidates.sort(
         key=lambda item: (
-            -scores_by_listing.get(str(item[1]["listing_id"]), (0.0, None))[0],
-            -_candidate_soft_score(item[1]),
-            item[0],
-        ),
+            -item[0],
+            -item[1],
+            -item[2],
+            item[3],
+        )
     )
 
     ranked_results: list[RankedListingResult] = []
-    for _, candidate in ranked_candidates:
+    for blended_score, image_score, soft_score, _, candidate, best_image_url in ranked_candidates:
         listing_id = str(candidate["listing_id"])
-        score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
         listing = _to_listing_data(candidate)
         if best_image_url and not listing.hero_image_url:
             listing.hero_image_url = best_image_url
@@ -83,8 +103,12 @@ def _rank_with_image_rag(
         ranked_results.append(
             RankedListingResult(
                 listing_id=listing_id,
-                score=score,
-                reason=_image_rank_reason(candidate, image_score=score),
+                score=round(blended_score, 4),
+                reason=_image_rank_reason(
+                    candidate,
+                    image_score=image_score,
+                    soft_score=soft_score,
+                ),
                 listing=listing,
             )
         )
@@ -116,15 +140,43 @@ def _fallback_reason(candidate: dict[str, Any]) -> str:
     return "Matched hard filters."
 
 
-def _image_rank_reason(candidate: dict[str, Any], *, image_score: float) -> str:
+def _image_rank_reason(
+    candidate: dict[str, Any],
+    *,
+    image_score: float,
+    soft_score: float,
+) -> str:
     soft_reason = _candidate_soft_reason(candidate)
-    if image_score > 0 and soft_reason:
-        return f"Ranked by image similarity after soft filtering: {soft_reason}."
+    if image_score > 0 and soft_score > 0 and soft_reason:
+        return f"Ranked by blended image similarity and soft preferences: {soft_reason}."
+    if image_score > 0 and soft_score > 0:
+        return "Ranked by blended image similarity and soft preferences."
     if image_score > 0:
-        return "Ranked by image similarity service."
+        return "Ranked by image similarity with soft preference blending."
     if soft_reason:
         return f"No image match; retained by soft filtering: {soft_reason}."
     return "No image match from image similarity service."
+
+
+def _blend_rank_score(
+    *,
+    image_score: float,
+    soft_score: float,
+    max_image_score: float,
+    max_soft_score: float,
+) -> float:
+    normalized_image_score = _normalize_non_negative_score(image_score, max_image_score)
+    normalized_soft_score = _normalize_non_negative_score(soft_score, max_soft_score)
+    return (
+        normalized_image_score * IMAGE_SIMILARITY_WEIGHT
+        + normalized_soft_score * SOFT_PREFERENCE_WEIGHT
+    )
+
+
+def _normalize_non_negative_score(score: float, max_score: float) -> float:
+    if max_score <= 0:
+        return 0.0
+    return max(score, 0.0) / max_score
 
 
 def _to_listing_data(candidate: dict[str, Any]) -> ListingData:

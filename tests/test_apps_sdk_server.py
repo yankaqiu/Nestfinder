@@ -58,6 +58,7 @@ def test_build_tool_descriptor_points_to_widget() -> None:
     assert descriptor.name == SEARCH_TOOL_NAME
     assert "query" in descriptor.inputSchema["properties"]
     assert "limit" in descriptor.inputSchema["properties"]
+    assert "strategy_id" not in descriptor.inputSchema["properties"]
     assert descriptor.meta["ui"]["resourceUri"] == WIDGET_TEMPLATE_URI
     assert descriptor.meta["openai/outputTemplate"] == WIDGET_TEMPLATE_URI
 

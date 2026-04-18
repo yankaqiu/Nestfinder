@@ -36,6 +36,7 @@ def test_post_listings_returns_ranked_results(tmp_path: Path) -> None:
     assert isinstance(body["listings"], list)
     assert len(body["listings"]) <= 25
     assert body["listings"]
+    assert body["meta"]["strategy_id"]
     assert {"listing_id", "score", "reason", "listing"} <= set(body["listings"][0].keys())
     assert {"id", "title"} <= set(body["listings"][0]["listing"].keys())
     assert isinstance(body["listings"][0]["score"], float)
@@ -65,6 +66,7 @@ def test_post_listings_search_filter_applies_explicit_hard_filters(tmp_path: Pat
     assert isinstance(body["listings"], list)
     assert len(body["listings"]) <= 5
     assert body["listings"]
+    assert body["meta"]["strategy_id"]
     assert {"listing_id", "score", "reason", "listing"} <= set(body["listings"][0].keys())
     assert {"id", "title", "city"} <= set(body["listings"][0]["listing"].keys())
     assert all(

@@ -7,7 +7,7 @@ This service provides text-to-image retrieval over listing images.
 - stores image embeddings in Milvus Lite
 - persists both vector state and sync state on disk
 - backfills the corpus on startup in the background
-- lazily indexes missing candidate listings during search
+- searches only over listings that have already been indexed
 - searches only inside the candidate `listing_ids` supplied by the caller
 
 ## API
@@ -65,4 +65,5 @@ docker compose up --build image-rag
 - `IMAGE_RAG_SYNC_ON_START=true|false`
 - `IMAGE_RAG_IMAGE_BATCH_SIZE`
 - `IMAGE_RAG_QUERY_BATCH_SIZE`
+- `IMAGE_RAG_SYNC_WORKERS`
 - `IMAGE_RAG_CANDIDATE_CHUNK_SIZE`

@@ -1,4 +1,10 @@
 SHELL := /bin/bash
+ENV_FILE ?= .env
+
+ifneq ($(wildcard $(ENV_FILE)),)
+include $(ENV_FILE)
+export $(shell sed -n 's/=.*//p' $(ENV_FILE))
+endif
 
 PUBLIC_URL_FILE ?= .local/public-url
 API_HOST ?= 127.0.0.1
@@ -16,6 +22,8 @@ IMAGE_RAG_SYNC_ON_START ?= true
 
 help:
 	@echo "Available targets:"
+	@echo "  Uses $(ENV_FILE) automatically when present."
+	@echo
 	@echo "  make tunnel"
 	@echo "    Open a Cloudflare tunnel for the MCP port and save the public URL to $(PUBLIC_URL_FILE)."
 	@echo
@@ -30,6 +38,7 @@ help:
 	@echo "    Print the ChatGPT connector URL from $(PUBLIC_URL_FILE)."
 	@echo
 	@echo "Useful overrides:"
+	@echo "  make stack ENV_FILE=.env.local"
 	@echo "  make tunnel MCP_PORT=8011"
 	@echo "  make stack IMAGE_RAG_DEVICE=auto STARTUP_TIMEOUT_S=1200"
 	@echo "  make stack PUBLIC_BASE_URL=https://example.trycloudflare.com"

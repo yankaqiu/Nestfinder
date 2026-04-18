@@ -37,7 +37,11 @@ def listings(request: ListingsQueryRequest) -> ListingsResponse:
         limit=request.limit,
         offset=request.offset,
     )
-    logger.info("API /listings returned %s listings", len(response.listings))
+    logger.info(
+        "API /listings returned %s listings via %s",
+        len(response.listings),
+        response.meta.get("strategy_id"),
+    )
     return response
 
 
@@ -49,5 +53,9 @@ def listings_search(request: ListingsSearchRequest) -> ListingsResponse:
         db_path=settings.db_path,
         hard_facts=request.hard_filters,
     )
-    logger.info("API /listings/search/filter returned %s listings", len(response.listings))
+    logger.info(
+        "API /listings/search/filter returned %s listings via %s",
+        len(response.listings),
+        response.meta.get("strategy_id"),
+    )
     return response

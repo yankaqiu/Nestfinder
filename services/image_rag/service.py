@@ -66,6 +66,7 @@ class ImageRagService:
             image_loader=ImageLoader(timeout_s=self._settings.image_download_timeout_s),
             raw_data_dir=self._settings.raw_data_dir,
             listings_db_path=self._settings.listings_db_path,
+            max_workers=self._settings.sync_workers,
         )
 
         if self._settings.sync_on_start:
@@ -102,7 +103,6 @@ class ImageRagService:
         }
 
     def search(self, *, query_text: str, listing_ids: list[str], top_k: int) -> SearchOutput:
-        sync_manager = self._require_sync_manager()
         embedder = self._require_embedder()
         deduped_ids = list(dict.fromkeys(listing_ids))
         if not query_text.strip() or not deduped_ids:
@@ -113,15 +113,32 @@ class ImageRagService:
                     "device": self._require_device_info().selected,
                     "candidate_count": len(deduped_ids),
                     "indexed_now": 0,
+                    "indexed_candidate_count": 0,
                     "missing_image_count": 0,
                 },
             )
 
-        sync_summary = sync_manager.ensure_indexed(deduped_ids)
+        indexed_ids = self._state_store.list_indexed_listing_ids(
+            listing_ids=deduped_ids,
+            model_name=self._require_selected_model(),
+        )
+        if not indexed_ids:
+            return SearchOutput(
+                results=[],
+                meta={
+                    "model_name": self._require_selected_model(),
+                    "device": self._require_device_info().selected,
+                    "candidate_count": len(deduped_ids),
+                    "indexed_now": 0,
+                    "indexed_candidate_count": 0,
+                    "missing_image_count": len(deduped_ids),
+                },
+            )
+
         query_vector = embedder.encode_texts([query_text])[0]
         hits = self._vector_store.search(
             query_vector=query_vector,
-            listing_ids=deduped_ids,
+            listing_ids=indexed_ids,
             model_name=self._require_selected_model(),
             top_k=top_k,
             chunk_size=self._settings.candidate_chunk_size,
@@ -150,8 +167,9 @@ class ImageRagService:
                 "model_name": self._require_selected_model(),
                 "device": self._require_device_info().selected,
                 "candidate_count": len(deduped_ids),
-                "indexed_now": sync_summary.indexed_now,
-                "missing_image_count": sync_summary.missing_image_count,
+                "indexed_now": 0,
+                "indexed_candidate_count": len(indexed_ids),
+                "missing_image_count": len(deduped_ids) - len(indexed_ids),
             },
         )
 

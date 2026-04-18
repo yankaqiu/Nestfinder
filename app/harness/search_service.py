@@ -1,19 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Any
-
-from app.core.hard_filters import HardFilterParams, search_listings
 from app.models.schemas import HardFilters, ListingsResponse
-from app.participant.hard_fact_extraction import extract_hard_facts
-from app.participant.ranking import rank_listings
-from app.participant.soft_fact_extraction import extract_soft_facts
-from app.participant.soft_filtering import filter_soft_facts
-
-
-def filter_hard_facts(db_path: Path, hard_facts: HardFilters) -> list[dict[str, Any]]:
-    return search_listings(db_path, to_hard_filter_params(hard_facts))
+from app.recommendation.router import get_recommendation_router
+from app.recommendation.utils import filter_hard_facts, to_hard_filter_params
 
 
 def query_from_text(
@@ -22,57 +12,25 @@ def query_from_text(
     query: str,
     limit: int,
     offset: int,
+    strategy_id: str | None = None,
 ) -> ListingsResponse:
-    # Run hard and soft extraction in parallel to halve LLM latency
-    hard_facts, soft_facts = asyncio.run(_extract_parallel(query))
-    hard_facts.limit = limit
-    hard_facts.offset = offset
-    candidates = filter_hard_facts(db_path, hard_facts)
-    candidates = filter_soft_facts(candidates, soft_facts)
-    return ListingsResponse(
-        listings=rank_listings(candidates, soft_facts),
-        meta={},
+    return get_recommendation_router().query_from_text(
+        db_path=db_path,
+        query=query,
+        limit=limit,
+        offset=offset,
+        strategy_id=strategy_id,
     )
-
-
-async def _extract_parallel(query: str) -> tuple[HardFilters, dict[str, Any]]:
-    loop = asyncio.get_event_loop()
-    hard_task = loop.run_in_executor(None, extract_hard_facts, query)
-    soft_task = loop.run_in_executor(None, extract_soft_facts, query)
-    return await asyncio.gather(hard_task, soft_task)  # type: ignore[return-value]
 
 
 def query_from_filters(
     *,
     db_path: Path,
     hard_facts: HardFilters | None,
+    strategy_id: str | None = None,
 ) -> ListingsResponse:
-    structured_hard_facts = hard_facts or HardFilters()
-    soft_facts = extract_soft_facts("")
-    candidates = filter_hard_facts(db_path, structured_hard_facts)
-    candidates = filter_soft_facts(candidates, soft_facts)
-    return ListingsResponse(
-        listings=rank_listings(candidates, soft_facts),
-        meta={},
-    )
-
-
-def to_hard_filter_params(hard_facts: HardFilters) -> HardFilterParams:
-    return HardFilterParams(
-        city=hard_facts.city,
-        postal_code=hard_facts.postal_code,
-        canton=hard_facts.canton,
-        min_price=hard_facts.min_price,
-        max_price=hard_facts.max_price,
-        min_rooms=hard_facts.min_rooms,
-        max_rooms=hard_facts.max_rooms,
-        latitude=hard_facts.latitude,
-        longitude=hard_facts.longitude,
-        radius_km=hard_facts.radius_km,
-        features=hard_facts.features,
-        offer_type=hard_facts.offer_type,
-        object_category=hard_facts.object_category,
-        limit=hard_facts.limit,
-        offset=hard_facts.offset,
-        sort_by=hard_facts.sort_by,
+    return get_recommendation_router().query_from_filters(
+        db_path=db_path,
+        hard_facts=hard_facts,
+        strategy_id=strategy_id,
     )
