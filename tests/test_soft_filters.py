@@ -104,4 +104,35 @@ def test_rank_listings_uses_image_rag_when_available(monkeypatch) -> None:
     )
 
     assert [item.listing_id for item in ranked] == ["second", "first"]
-    assert ranked[0].reason == "Ranked by image similarity after soft filtering: balcony."
+    assert ranked[0].reason == "Ranked by blended image similarity and soft preferences: balcony."
+
+
+def test_rank_listings_blends_image_and_soft_scores(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.participant.ranking.search_image_rag",
+        lambda **kwargs: {
+            "results": [
+                {
+                    "listing_id": "first",
+                    "score": 0.8,
+                    "best_image_url": "https://example.com/1.jpg",
+                },
+                {
+                    "listing_id": "second",
+                    "score": 0.7,
+                    "best_image_url": "https://example.com/2.jpg",
+                },
+            ]
+        },
+    )
+
+    ranked = rank_listings(
+        candidates=[
+            {"listing_id": "first", "title": "First", "_soft_score": 0.1, "_soft_reasons": ["bright"]},
+            {"listing_id": "second", "title": "Second", "_soft_score": 0.9, "_soft_reasons": ["balcony"]},
+        ],
+        soft_facts={"raw_query": "bright apartment with balcony"},
+    )
+
+    assert [item.listing_id for item in ranked] == ["second", "first"]
+    assert ranked[0].score > ranked[1].score

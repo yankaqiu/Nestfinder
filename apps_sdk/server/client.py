@@ -21,7 +21,11 @@ class ListingsApiClient:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30.0) as client:
             response = await client.post(
                 "/listings",
-                json={"query": query, "limit": limit, "offset": offset},
+                json={
+                    "query": query,
+                    "limit": limit,
+                    "offset": offset,
+                },
             )
             response.raise_for_status()
             payload = response.json()

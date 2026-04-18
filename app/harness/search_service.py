@@ -1,21 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
-from app.core.hard_filters import HardFilterParams, search_listings
 from app.models.schemas import HardFilters, ListingsResponse
-from app.participant.hard_fact_extraction import extract_hard_facts
-from app.participant.ranking import rank_listings
-from app.participant.soft_fact_extraction import extract_soft_facts
-from app.participant.soft_filtering import filter_soft_facts
-
-
-DEFAULT_RERANK_CANDIDATE_POOL_SIZE = 100
-
-
-def filter_hard_facts(db_path: Path, hard_facts: HardFilters) -> list[dict[str, Any]]:
-    return search_listings(db_path, to_hard_filter_params(hard_facts))
+from app.recommendation.router import get_recommendation_router
+from app.recommendation.utils import filter_hard_facts, to_hard_filter_params
 
 
 def query_from_text(
@@ -24,24 +12,14 @@ def query_from_text(
     query: str,
     limit: int,
     offset: int,
+    strategy_id: str | None = None,
 ) -> ListingsResponse:
-    hard_facts = _prepare_hard_facts_for_reranking(
-        extract_hard_facts(query),
+    return get_recommendation_router().query_from_text(
+        db_path=db_path,
+        query=query,
         limit=limit,
         offset=offset,
-    )
-    soft_facts = extract_soft_facts(query)
-    candidates = filter_hard_facts(db_path, hard_facts)
-    candidates = filter_soft_facts(
-        candidates,
-        soft_facts,
-        limit=limit,
-        offset=offset,
-    )
-    ranked = rank_listings(candidates, soft_facts)
-    return ListingsResponse(
-        listings=ranked[offset : offset + limit],
-        meta={},
+        strategy_id=strategy_id,
     )
 
 
@@ -49,64 +27,10 @@ def query_from_filters(
     *,
     db_path: Path,
     hard_facts: HardFilters | None,
+    strategy_id: str | None = None,
 ) -> ListingsResponse:
-    requested_hard_facts = hard_facts or HardFilters()
-    structured_hard_facts = _prepare_hard_facts_for_reranking(
-        requested_hard_facts,
-        limit=requested_hard_facts.limit,
-        offset=requested_hard_facts.offset,
-    )
-    soft_facts = {
-        "raw_query": "",
-        "signals": {},
-    }
-    candidates = filter_hard_facts(db_path, structured_hard_facts)
-    candidates = filter_soft_facts(
-        candidates,
-        soft_facts,
-        limit=requested_hard_facts.limit,
-        offset=requested_hard_facts.offset,
-    )
-    ranked = rank_listings(candidates, soft_facts)
-    return ListingsResponse(
-        listings=ranked[
-            requested_hard_facts.offset : requested_hard_facts.offset + requested_hard_facts.limit
-        ],
-        meta={},
-    )
-
-
-def to_hard_filter_params(hard_facts: HardFilters) -> HardFilterParams:
-    return HardFilterParams(
-        city=hard_facts.city,
-        postal_code=hard_facts.postal_code,
-        canton=hard_facts.canton,
-        min_price=hard_facts.min_price,
-        max_price=hard_facts.max_price,
-        min_rooms=hard_facts.min_rooms,
-        max_rooms=hard_facts.max_rooms,
-        latitude=hard_facts.latitude,
-        longitude=hard_facts.longitude,
-        radius_km=hard_facts.radius_km,
-        features=hard_facts.features,
-        offer_type=hard_facts.offer_type,
-        object_category=hard_facts.object_category,
-        limit=hard_facts.limit,
-        offset=hard_facts.offset,
-        sort_by=hard_facts.sort_by,
-    )
-
-
-def _prepare_hard_facts_for_reranking(
-    hard_facts: HardFilters,
-    *,
-    limit: int,
-    offset: int,
-) -> HardFilters:
-    candidate_limit = max(hard_facts.limit, limit + offset, DEFAULT_RERANK_CANDIDATE_POOL_SIZE)
-    return hard_facts.model_copy(
-        update={
-            "limit": candidate_limit,
-            "offset": 0,
-        }
+    return get_recommendation_router().query_from_filters(
+        db_path=db_path,
+        hard_facts=hard_facts,
+        strategy_id=strategy_id,
     )

@@ -1,13 +1,12 @@
 from pathlib import Path
 
-from app.models.schemas import HardFilters
-from app.models.schemas import ListingData
-from app.models.schemas import RankedListingResult
+from app.models.schemas import HardFilters, ListingData, ListingsResponse, RankedListingResult
 from app.harness.search_service import query_from_text
 from app.participant.hard_fact_extraction import extract_hard_facts
 from app.participant.ranking import rank_listings
 from app.participant.soft_fact_extraction import extract_soft_facts
 from app.participant.soft_filtering import filter_soft_facts
+from app.recommendation.strategies.image_rag_rule_based import RuleBasedImageRagStrategy
 from app.harness.search_service import to_hard_filter_params
 
 
@@ -44,15 +43,19 @@ def test_harness_service_converts_hard_filters_to_search_params() -> None:
     assert params.offset == 2
 
 
-def test_query_from_text_applies_final_pagination_after_ranking(monkeypatch, tmp_path: Path) -> None:
+def test_rule_based_strategy_applies_final_pagination_after_ranking(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     captured: dict[str, int] = {}
+    strategy = RuleBasedImageRagStrategy()
 
     monkeypatch.setattr(
-        "app.harness.search_service.extract_hard_facts",
+        "app.recommendation.strategies.image_rag_rule_based.extract_rule_based_hard_facts",
         lambda query: HardFilters(limit=5, offset=0),
     )
     monkeypatch.setattr(
-        "app.harness.search_service.extract_soft_facts",
+        "app.recommendation.strategies.image_rag_rule_based.extract_rule_based_soft_facts",
         lambda query: {"raw_query": query, "signals": {"bright": 1.0}},
     )
 
@@ -65,13 +68,13 @@ def test_query_from_text_applies_final_pagination_after_ranking(monkeypatch, tmp
             {"listing_id": "third", "title": "Third"},
         ]
 
-    monkeypatch.setattr("app.harness.search_service.filter_hard_facts", fake_filter_hard_facts)
+    monkeypatch.setattr("app.recommendation.base.filter_hard_facts", fake_filter_hard_facts)
     monkeypatch.setattr(
-        "app.harness.search_service.filter_soft_facts",
+        "app.recommendation.strategies.image_rag_rule_based.filter_rule_based_soft_facts",
         lambda candidates, soft_facts, **kwargs: candidates,
     )
     monkeypatch.setattr(
-        "app.harness.search_service.rank_listings",
+        "app.recommendation.strategies.image_rag_rule_based.rank_rule_based_listings",
         lambda candidates, soft_facts: [
             RankedListingResult(
                 listing_id="third",
@@ -94,7 +97,7 @@ def test_query_from_text_applies_final_pagination_after_ranking(monkeypatch, tmp
         ],
     )
 
-    response = query_from_text(
+    response = strategy.query_from_text(
         db_path=tmp_path / "listings.db",
         query="bright apartment",
         limit=1,
@@ -104,3 +107,38 @@ def test_query_from_text_applies_final_pagination_after_ranking(monkeypatch, tmp
     assert captured["offset"] == 0
     assert captured["limit"] >= 2
     assert [listing.listing_id for listing in response.listings] == ["second"]
+
+
+def test_query_from_text_delegates_to_recommendation_router(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    class StubRouter:
+        def query_from_text(self, **kwargs: object) -> ListingsResponse:
+            captured.update(kwargs)
+            return ListingsResponse(
+                listings=[
+                    RankedListingResult(
+                        listing_id="stub",
+                        score=1.0,
+                        reason="stub",
+                        listing=ListingData(id="stub", title="Stub"),
+                    )
+                ],
+                meta={"strategy_id": "stub"},
+            )
+
+    monkeypatch.setattr(
+        "app.harness.search_service.get_recommendation_router",
+        lambda: StubRouter(),
+    )
+
+    response = query_from_text(
+        db_path=tmp_path / "listings.db",
+        query="quiet apartment",
+        limit=3,
+        offset=2,
+        strategy_id="llm_extraction_baseline",
+    )
+
+    assert captured["strategy_id"] == "llm_extraction_baseline"
+    assert response.meta["strategy_id"] == "stub"
