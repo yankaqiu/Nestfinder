@@ -8,11 +8,19 @@ import mcp.types as types
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from starlette.responses import Response
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import JSONResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from apps_sdk.server.client import get_listings_api_client
-from apps_sdk.server.preferences import VALID_ACTIONS, get_events, record_event
+from apps_sdk.server.preferences import (
+    VALID_ACTIONS,
+    build_user_profile,
+    get_events,
+    get_search_history,
+    log_search,
+    record_event,
+)
 from apps_sdk.server.widget import (
     WIDGET_MIME_TYPE,
     WIDGET_TEMPLATE_URI,
@@ -24,6 +32,7 @@ from apps_sdk.server.widget import (
 SEARCH_TOOL_NAME = "search_listings"
 RECORD_PREF_TOOL_NAME = "record_preference"
 GET_PREFS_TOOL_NAME = "get_user_preferences"
+GET_PROFILE_TOOL_NAME = "get_user_profile"
 logger = logging.getLogger(__name__)
 MAP_RESOURCE_ORIGINS = [
     "https://a.basemaps.cartocdn.com",
@@ -60,6 +69,12 @@ class GetUserPreferencesInput(BaseModel):
     listing_id: str | None = Field(default=None, description="Filter events by listing ID.")
     action: str | None = Field(default=None, description="Filter by action type (view/click/favorite/dismiss).")
     limit: int = Field(default=25, ge=1, le=200)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class GetUserProfileInput(BaseModel):
+    session_id: str | None = Field(default=None, description="Session ID to build profile for. Omit for all-time profile.")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -142,15 +157,54 @@ def build_get_prefs_descriptor() -> types.Tool:
     )
 
 
+def build_get_profile_descriptor() -> types.Tool:
+    return types.Tool(
+        name=GET_PROFILE_TOOL_NAME,
+        title="Get user profile",
+        description=(
+            "Build a preference profile for the user from their click and favorite history. "
+            "Returns preferred cities, features, price range, and recent searches. "
+            "Call this at the start of a conversation to personalise search results."
+        ),
+        inputSchema=GetUserProfileInput.model_json_schema(),
+        annotations=types.ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            openWorldHint=False,
+        ),
+    )
+
+
 def build_search_tool_result(
     *,
     query: str,
     payload: dict[str, Any],
 ) -> types.CallToolResult:
-    count = len(payload.get("listings", []))
-    summary = f"Showing {count} listing{'s' if count != 1 else ''} for “{query}”."
+    listings = payload.get("listings", [])
+    count = len(listings)
+    lines = [f"**{count} listing{'s' if count != 1 else ''} for \"{query}\"**\n"]
+    for item in listings:
+        lst = item.get("listing", {})
+        score = item.get("score", 0)
+        hero = lst.get("hero_image_url")
+        title = lst.get("title", "—")
+        city = lst.get("city", "?")
+        rooms = lst.get("rooms", "?")
+        price = lst.get("price_chf")
+        price_str = f"CHF {price}/mo" if price else "price n/a"
+        reason = item.get("reason", "")
+        lines.append(f"### {title}")
+        if hero:
+            lines.append(f"![{title}]({hero})")
+        lines.append(f"📍 {city} · {rooms} rooms · {price_str} · score {score:.2f}")
+        if reason:
+            lines.append(f"_{reason}_")
+        url = lst.get("original_listing_url")
+        if url:
+            lines.append(f"[View listing]({url})")
+        lines.append("")
     return types.CallToolResult(
-        content=[types.TextContent(type="text", text=summary)],
+        content=[types.TextContent(type="text", text="\n".join(lines))],
         structuredContent=payload,
         _meta=build_tool_result_meta(),
     )
@@ -201,6 +255,7 @@ async def _list_tools() -> list[types.Tool]:
         build_tool_descriptor(),
         build_record_pref_descriptor(),
         build_get_prefs_descriptor(),
+        build_get_profile_descriptor(),
     ]
 
 
@@ -260,6 +315,8 @@ async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
             limit=search_input.limit,
             offset=search_input.offset,
         )
+        result_count = len(response_payload.get("listings", []))
+        log_search(query=search_input.query, result_count=result_count)
         return types.ServerResult(
             build_search_tool_result(query=search_input.query, payload=response_payload)
         )
@@ -322,6 +379,39 @@ async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
             )
         )
 
+    # ── get_user_profile ─────────────────────────────────────────────────────
+    if name == GET_PROFILE_TOOL_NAME:
+        try:
+            profile_input = GetUserProfileInput.model_validate(args)
+        except ValidationError as exc:
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"Invalid input: {exc.errors()}")],
+                    isError=True,
+                )
+            )
+        profile = build_user_profile(session_id=profile_input.session_id)
+        lines = ["**User preference profile**\n"]
+        if profile["preferred_cities"]:
+            lines.append(f"- Preferred cities: {', '.join(profile['preferred_cities'])}")
+        if profile["preferred_features"]:
+            lines.append(f"- Preferred features: {', '.join(profile['preferred_features'])}")
+        if profile["price_range"]:
+            pr = profile["price_range"]
+            lines.append(f"- Price range: CHF {pr['min']}–{pr['max']}/mo")
+        if profile["recent_searches"]:
+            lines.append(f"- Recent searches: {'; '.join(profile['recent_searches'][:5])}")
+        if profile["favorite_listing_ids"]:
+            lines.append(f"- Favorited listings: {', '.join(profile['favorite_listing_ids'])}")
+        if not any([profile["preferred_cities"], profile["preferred_features"], profile["favorite_listing_ids"]]):
+            lines.append("No interaction history yet.")
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[types.TextContent(type="text", text="\n".join(lines))],
+                structuredContent=profile,
+            )
+        )
+
     return types.ServerResult(
         types.CallToolResult(
             content=[types.TextContent(type="text", text=f"Unknown tool: {name}")],
@@ -333,7 +423,42 @@ async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
 mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
 mcp._mcp_server.request_handlers[types.CallToolRequest] = _handle_call_tool
 
+async def _preferences_http(request: StarletteRequest) -> JSONResponse:
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+    if request.method == "OPTIONS":
+        return JSONResponse({}, headers=cors_headers)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400, headers=cors_headers)
+
+    listing_id = body.get("listing_id", "")
+    action = body.get("action", "click")
+    query = body.get("query")
+    session_id = body.get("session_id")
+
+    if not listing_id:
+        return JSONResponse({"error": "listing_id required"}, status_code=400, headers=cors_headers)
+
+    try:
+        event_id = record_event(
+            listing_id=listing_id,
+            action=action,
+            query=query,
+            session_id=session_id,
+        )
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400, headers=cors_headers)
+
+    return JSONResponse({"event_id": event_id, "ok": True}, headers=cors_headers)
+
+
 app = mcp.streamable_http_app()
+app.add_route("/preferences", _preferences_http, methods=["POST", "OPTIONS"])
 _widget_dist_dir = get_widget_dist_dir()
 _widget_dist_dir.mkdir(parents=True, exist_ok=True)
 app.mount(

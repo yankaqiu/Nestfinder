@@ -7,5 +7,12 @@ export default defineConfig({
     outDir: "dist",
     manifest: true,
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/index.js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name][extname]",
+      },
+    },
   },
 });

@@ -29,6 +29,7 @@ class ImageSearchHit:
 
 class MilvusLiteStore:
     def __init__(self, *, uri: str, collection_name: str) -> None:
+        self._uri = uri
         self._client = MilvusClient(uri=uri)
         self._collection_name = collection_name
         self._client_lock = threading.RLock()

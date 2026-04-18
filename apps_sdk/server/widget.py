@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 
-WIDGET_TEMPLATE_URI = "ui://widget/listings-map-list.html"
+WIDGET_TEMPLATE_URI = "ui://widget/listings-map-list-v2.html"
 WIDGET_TITLE = "Listings Map And Ranked List"
 WIDGET_MIME_TYPE = "text/html;profile=mcp-app"
 
@@ -36,10 +36,13 @@ def load_widget_html(*, dist_dir: Path, public_base_url: str) -> str:
     script_path = main_entry["file"]
     css_paths = main_entry.get("css", [])
 
-    css_links = "\n".join(
-        f'<link rel="stylesheet" href="{public_base_url}/widget-assets/{path}">'
+    # Inline CSS and JS so the widget has no external URL dependencies.
+    # This makes it immune to tunnel URL changes and ChatGPT caching stale asset URLs.
+    css_blocks = "\n".join(
+        f"<style>{(dist_dir / path).read_text(encoding='utf-8')}</style>"
         for path in css_paths
     )
+    js_content = (dist_dir / script_path).read_text(encoding="utf-8")
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -47,11 +50,12 @@ def load_widget_html(*, dist_dir: Path, public_base_url: str) -> str:
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{WIDGET_TITLE}</title>
-    {css_links}
+    {css_blocks}
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="{public_base_url}/widget-assets/{script_path}"></script>
+    <script>window.__NESTFINDER_API_BASE__ = "{public_base_url}";</script>
+    <script type="module">{js_content}</script>
   </body>
 </html>
 """

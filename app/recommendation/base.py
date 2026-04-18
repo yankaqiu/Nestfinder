@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -26,12 +27,8 @@ class RecommendationStrategy(ABC):
         limit: int,
         offset: int,
     ) -> ListingsResponse:
-        hard_facts = self.prepare_hard_facts(
-            self.extract_hard_facts(query),
-            limit=limit,
-            offset=offset,
-        )
-        soft_facts = self.extract_soft_facts(query)
+        raw_hard, soft_facts = asyncio.run(self._extract_parallel(query))
+        hard_facts = self.prepare_hard_facts(raw_hard, limit=limit, offset=offset)
         return self._build_response(
             db_path=db_path,
             hard_facts=hard_facts,
@@ -109,6 +106,12 @@ class RecommendationStrategy(ABC):
             listings=ranked[response_offset : response_offset + response_limit],
             meta=self.response_meta(),
         )
+
+    async def _extract_parallel(self, query: str) -> tuple[HardFilters, SoftFacts]:
+        loop = asyncio.get_event_loop()
+        hard_task = loop.run_in_executor(None, self.extract_hard_facts, query)
+        soft_task = loop.run_in_executor(None, self.extract_soft_facts, query)
+        return await asyncio.gather(hard_task, soft_task)  # type: ignore[return-value]
 
     @abstractmethod
     def extract_hard_facts(self, query: str) -> HardFilters:

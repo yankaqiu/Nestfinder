@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import os
+
+# Increase gRPC keepalive interval to stop Milvus Lite from closing the channel.
+# Default is ~10 s which triggers ENHANCE_YOUR_CALM / too_many_pings from the
+# embedded server. 5 minutes is well within typical idle timeouts.
+os.environ.setdefault("GRPC_KEEPALIVE_TIME_MS", "300000")
+os.environ.setdefault("GRPC_KEEPALIVE_TIMEOUT_MS", "20000")
+os.environ.setdefault("GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS", "0")
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request

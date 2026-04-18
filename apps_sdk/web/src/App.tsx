@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RankedList from "./components/RankedList";
 import ListingsMap from "./components/ListingsMap";
 
@@ -33,7 +33,22 @@ declare global {
     openai?: {
       toolOutput?: ToolOutput;
     };
+    __NESTFINDER_API_BASE__?: string;
   }
+}
+
+function generateSessionId(): string {
+  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function trackClick(listingId: string, sessionId: string, query?: string): void {
+  const base = window.__NESTFINDER_API_BASE__;
+  if (!base) return;
+  fetch(`${base}/preferences`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ listing_id: listingId, action: "click", session_id: sessionId, query }),
+  }).catch(() => undefined);
 }
 
 type UiToolResultMessage = {
@@ -67,6 +82,19 @@ function readToolOutputFromMessage(message: unknown): ToolOutput | null {
 export default function App() {
   const [toolOutput, setToolOutput] = useState<ToolOutput>(() => readToolOutput());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const sessionIdRef = useRef<string>(generateSessionId());
+  const lastQueryRef = useRef<string | undefined>(undefined);
+
+  const lastClickRef = useRef<{ id: string; ts: number } | null>(null);
+  const handleSelect = useCallback((listingId: string) => {
+    setSelectedId(listingId);
+    const now = Date.now();
+    const last = lastClickRef.current;
+    if (!last || last.id !== listingId || now - last.ts > 1000) {
+      lastClickRef.current = { id: listingId, ts: now };
+      trackClick(listingId, sessionIdRef.current, lastQueryRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     const onGlobals = (event: Event) => {
@@ -95,6 +123,7 @@ export default function App() {
   }, []);
 
   const results = toolOutput.listings ?? [];
+  lastQueryRef.current = (toolOutput.meta as any)?.query as string | undefined;
 
   useEffect(() => {
     if (!results.length) {
@@ -128,7 +157,7 @@ export default function App() {
         <RankedList
           results={results}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelect}
         />
       </aside>
       <main className="map-panel">
@@ -136,7 +165,7 @@ export default function App() {
           results={results}
           selectedId={selectedId}
           selectedListing={selectedListing}
-          onSelect={setSelectedId}
+          onSelect={handleSelect}
         />
       </main>
     </div>

@@ -72,20 +72,25 @@ export default function ListingsMap({
       return;
     }
 
-    mapRef.current = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: MAP_STYLE,
       center: [8.54, 47.37],
       zoom: 7,
       attributionControl: false,
     });
+    mapRef.current = map;
 
-    mapRef.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(mapContainerRef.current);
 
     return () => {
+      observer.disconnect();
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
-      mapRef.current?.remove();
+      map.remove();
       mapRef.current = null;
     };
   }, []);
