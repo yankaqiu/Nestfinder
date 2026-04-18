@@ -174,7 +174,6 @@ class MilvusLiteStore:
             index_params=index_params,
         )
 
-
 def _chunked(values: list[str], size: int) -> list[list[str]]:
     return [values[index : index + size] for index in range(0, len(values), size)]
 
