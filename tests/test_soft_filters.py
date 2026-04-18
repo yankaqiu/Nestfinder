@@ -54,3 +54,34 @@ def test_rank_listings_returns_ranked_shape() -> None:
     assert ranked[0].listing.title == "Example"
     assert ranked[0].listing.city == "Zurich"
     assert ranked[0].listing.image_urls
+
+
+def test_rank_listings_uses_image_rag_when_available(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.participant.ranking.search_image_rag",
+        lambda **kwargs: {
+            "results": [
+                {
+                    "listing_id": "second",
+                    "score": 0.9,
+                    "best_image_url": "https://example.com/2.jpg",
+                },
+                {
+                    "listing_id": "first",
+                    "score": 0.2,
+                    "best_image_url": "https://example.com/1.jpg",
+                },
+            ]
+        },
+    )
+
+    ranked = rank_listings(
+        candidates=[
+            {"listing_id": "first", "title": "First"},
+            {"listing_id": "second", "title": "Second"},
+        ],
+        soft_facts={"raw_query": "bright apartment"},
+    )
+
+    assert [item.listing_id for item in ranked] == ["second", "first"]
+    assert ranked[0].reason == "Ranked by image similarity service."
