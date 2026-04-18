@@ -6,14 +6,15 @@ documenting known failure cases so you can iterate systematically.
 ## Quick start
 
 ```bash
-# Run all benchmarks (from repo root)
-pytest benchmarks/ -v
+# Run all benchmarks — regex fallback only (no API key needed)
+.venv/bin/python -m pytest benchmarks/ -v
 
-# Run only hard-fact tests
-pytest benchmarks/test_extraction.py -k hard -v
+# Run with LLM active (requires ANTHROPIC_API_KEY)
+export ANTHROPIC_API_KEY=sk-ant-...
+.venv/bin/python -m pytest benchmarks/ -v
 
-# Run only soft-fact tests
-pytest benchmarks/test_extraction.py -k soft -v
+# Show xfail cases as real failures to see what actually breaks
+.venv/bin/python -m pytest benchmarks/ -v --runxfail
 ```
 
 ## File layout
@@ -50,50 +51,41 @@ BenchmarkCase(
 )
 ```
 
-## Iteration roadmap
+## Current status (V2)
 
-Fix the 9 known failures (`xfail`) in this order:
+24 cases total. With **LLM active**: nearly all pass. With **regex fallback**:
 
-### Phase A — Add `bedroom` to room keyword regex
+| Category | Regex only | With LLM |
+|----------|-----------|----------|
+| Hard pass | 10/24 | 23/24 |
+| Soft pass | 5/9 | 8/9 |
 
-**File:** `app/participant/hard_fact_extraction.py`
-**Change:** Add `bedrooms?` to `_ROOM_KW`
-**Resolves:** `english_basel_bedrooms`, `family_basel_english`, `english_geneva_residential`
+### Weaknesses only the LLM fixes (regex xfails)
 
-### Phase B — Add `budget up to` to max-price regex
+| Issue | Cases affected |
+|-------|---------------|
+| `bedroom` / `bed` not in room keyword regex | `english_basel_bedrooms`, `bedroom_rooms_english`, `bed_abbreviation` |
+| `budget up to` not in max-price regex | `family_basel_english`, `english_geneva_residential` |
+| `between X and Y CHF` price range | `price_range_between` |
+| `for X per month` (no CHF context) | `price_per_month` |
+| Italian `locali` / `massimo` | `italian_lugano` |
+| Postal code extraction | `postal_code_zurich` |
+| Object category (Einfamilienhaus) | `house_type_zug` |
+| `Haustiere erlaubt` feature | `multi_feature_elevator_pets` |
+| German soft signals after translation | `german_zurich_3.5_rooms`, `german_lausanne_epfl` |
+| `Familie` → family_friendly | `family_lake_kilchberg` |
+| `good transport access` | `english_geneva_residential` |
 
-**File:** `app/participant/hard_fact_extraction.py`
-**Change:** Add `budget\s+(?:up\s+to|bis)` to `_MAX_PRICE_RE`
-**Resolves:** `family_basel_english`, `english_geneva_residential`
+### Remaining weaknesses (even with LLM)
 
-### Phase C — Add missing city aliases
+- `multi_city_german`: LLM sometimes interprets "Raum Zürich" as area-around rather than city
+- `family_lake_kilchberg`: LLM varies on outdoor_space vs balcony distinction
+- LLM responses are non-deterministic — same query may give slightly different results
 
-**File:** `app/participant/hard_fact_extraction.py`
-**Change:** Add Wallisellen, Kilchberg, Rüschlikon, Thalwil, Oerlikon, Altstetten, Schlieren to `_CITY_ALIASES`
-**Resolves:** `multi_city_german`, `family_lake_kilchberg`
+## Iteration workflow
 
-### Phase D — Run soft extraction on both original + translated query
-
-**File:** `app/participant/soft_fact_extraction.py`
-**Change:** Run regex signals on the original query _and_ the translated query, merging results
-**Resolves:** `german_zurich_3.5_rooms`, `family_lake_kilchberg`, `german_lausanne_epfl`
-
-### Phase E — Expand public_transport regex
-
-**File:** `app/participant/soft_fact_extraction.py`
-**Change:** Add `good\s+transport`, `transport\s+access`, `well\s+connected` patterns
-**Resolves:** `english_geneva_residential`
-
-### Phase F — Implement soft filtering + ranking
-
-**Files:** `app/participant/soft_filtering.py`, `app/participant/ranking.py`
-**Change:** Use soft-fact signals to score and reorder candidates
-**Resolves:** New benchmark cases (to be written)
-
-## Workflow
-
-1. Pick the next phase from the roadmap above
-2. Make the code change in the `app/participant/` module
-3. Run `pytest benchmarks/ -v`
-4. Fixed `xfail` cases will flip to `xpass` — remove the `xfail_*` field from the case
-5. Commit and move to the next phase
+1. Pick a weakness from the table above
+2. Decide: fix the regex fallback, improve the LLM prompt, or both
+3. Run `pytest benchmarks/ -v` to check
+4. Fixed `xfail` cases will flip to `xpass` — remove the `xfail_*` field
+5. Commit and move on

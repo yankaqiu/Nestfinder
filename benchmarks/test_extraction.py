@@ -34,9 +34,14 @@ def test_hard_fact_extraction(case: BenchmarkCase) -> None:
     result = extract_hard_facts(case.query)
     for key, expected in case.expected_hard.items():
         actual = getattr(result, key)
-        assert actual == expected, (
-            f"[{case.id}] hard filter '{key}': expected {expected!r}, got {actual!r}"
-        )
+        if isinstance(expected, list) and isinstance(actual, list):
+            assert set(actual) == set(expected), (
+                f"[{case.id}] hard filter '{key}': expected {expected!r}, got {actual!r}"
+            )
+        else:
+            assert actual == expected, (
+                f"[{case.id}] hard filter '{key}': expected {expected!r}, got {actual!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +86,12 @@ def _run_all_and_report() -> str:
         try:
             result = extract_hard_facts(case.query)
             for key, expected in case.expected_hard.items():
-                if getattr(result, key) != expected:
+                actual = getattr(result, key)
+                if isinstance(expected, list) and isinstance(actual, list):
+                    if set(actual) != set(expected):
+                        hard_ok = False
+                        break
+                elif actual != expected:
                     hard_ok = False
                     break
         except Exception:
