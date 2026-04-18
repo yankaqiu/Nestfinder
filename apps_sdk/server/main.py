@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -20,6 +21,7 @@ from apps_sdk.server.widget import (
 )
 
 SEARCH_TOOL_NAME = "search_listings"
+logger = logging.getLogger(__name__)
 MAP_RESOURCE_ORIGINS = [
     "https://a.basemaps.cartocdn.com",
     "https://b.basemaps.cartocdn.com",
@@ -195,10 +197,22 @@ async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
             )
         )
 
+    logger.info(
+        "MCP tool call: %s query=%r limit=%s offset=%s",
+        SEARCH_TOOL_NAME,
+        search_input.query,
+        search_input.limit,
+        search_input.offset,
+    )
     response_payload = await get_listings_api_client().search_listings(
         query=search_input.query,
         limit=search_input.limit,
         offset=search_input.offset,
+    )
+    logger.info(
+        "MCP tool result: %s returned %s listings",
+        SEARCH_TOOL_NAME,
+        len(response_payload.get("listings", [])),
     )
     return types.ServerResult(
         build_search_tool_result(query=search_input.query, payload=response_payload)

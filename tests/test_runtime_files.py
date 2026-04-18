@@ -11,6 +11,7 @@ def test_core_runtime_entrypoints_exist() -> None:
         "challenge.md",
         "app/main.py",
         "apps_sdk/server/main.py",
+        "services/image_rag/main.py",
         "scripts/mcp_smoke.py",
     ]:
         assert (repo_root / relative_path).exists(), relative_path
