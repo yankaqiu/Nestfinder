@@ -34,7 +34,6 @@ Omit any field that was not mentioned or cannot be confidently inferred.
 JSON schema (all fields optional):
 {
   "city": ["Zürich"],
-  "canton": "ZH",
   "postal_code": ["8001"],
   "min_rooms": 2.5,
   "max_rooms": 3.5,
@@ -42,8 +41,7 @@ JSON schema (all fields optional):
   "max_price": 2800,
   "min_area_sqm": 70,
   "offer_type": "RENT",
-  "features": ["elevator"],
-  "object_category": ["apartment"]
+  "features": ["elevator"]
 }
 
 Rules:
@@ -55,11 +53,13 @@ Rules:
 - "studio" → min_rooms: 1.0, max_rooms: 1.5
 - German comma decimal: "2,5 Zimmer" = 2.5 rooms
 - "mindestens X m²" → min_area_sqm: X
-- offer_type: "RENT" for rental queries, "SALE" for purchase queries
-- canton: single 2-letter code (ZH, BE, GE, VD, BS, BL, AG, TG, SG, LU, etc.)
+- offer_type: ONLY set to "SALE" if user explicitly says buy/kaufen/acheter. Otherwise OMIT (default is rent).
+- Do NOT include "canton" — city is enough for location filtering
+- Do NOT include "object_category" — the database uses German values (Wohnung, Haus) so this filter causes mismatches
 - City canonical spellings: zurich→Zürich, genf→Genf, bern→Bern, basel→Basel,
   lausanne→Lausanne, luzern→Luzern, zug→Zug, winterthur→Winterthur
-- features: include ONLY if user explicitly requires them (e.g. "must have", "brauche", "required")
+  geneva→Genf, lucerne→Luzern
+- features: include ONLY if user explicitly requires them (e.g. "must have", "brauche", "mit Lift")
   Valid hard features: elevator, pets_allowed, wheelchair_accessible
   Balcony, parking, garage, fireplace, garden are SOFT preferences — omit them from features
 - Return ONLY the JSON object
