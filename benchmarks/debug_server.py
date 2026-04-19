@@ -25,6 +25,7 @@ from app.config import get_settings
 from app.core.hard_filters import search_listings
 from app.db import get_connection
 from app.harness.search_service import to_hard_filter_params
+from app.preferences import build_user_profile, get_events, get_recent_sessions, get_search_history
 from app.participant.hard_fact_extraction import extract_hard_facts
 from app.participant.ranking import _SIGNAL_MATCHERS, _build_rank_breakdowns, _image_bonus_cap
 from app.participant.soft_fact_extraction import extract_soft_facts
@@ -47,6 +48,12 @@ if _sred_images_dir.exists():
 class TraceRequest(BaseModel):
     query: str = Field(min_length=1)
     top_n: int = Field(default=20, ge=1, le=100)
+
+
+class PreferenceTraceRequest(BaseModel):
+    session_id: str | None = None
+    query: str | None = None
+    top_n: int = Field(default=10, ge=1, le=50)
 
 
 def _total_listings() -> int:
@@ -226,6 +233,58 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
     return result
 
 
+@app.post("/preferences-trace")
+def trace_preferences(req: PreferenceTraceRequest) -> dict[str, Any]:
+    session_id = (req.session_id or "").strip() or None
+    profile = build_user_profile(session_id=session_id)
+    result: dict[str, Any] = {
+        "session_id": session_id,
+        "recent_sessions": get_recent_sessions(limit=15),
+        "profile": profile,
+        "events": get_events(session_id=session_id, limit=100) if session_id else [],
+        "recent_searches": get_search_history(session_id=session_id, limit=20) if session_id else [],
+        "query_preview": None,
+    }
+
+    query = (req.query or "").strip()
+    if not query:
+        return result
+
+    hard_facts = extract_hard_facts(query)
+    params = to_hard_filter_params(hard_facts)
+    params.limit = max(100, req.top_n * 8)
+    params.offset = 0
+    candidates = search_listings(DB_PATH, params)
+    soft_facts = extract_soft_facts(query)
+    filtered = filter_soft_facts(candidates, soft_facts)
+    rank_breakdowns = _build_rank_breakdowns(filtered, soft_facts, user_profile=profile)
+
+    top_results: list[dict[str, Any]] = []
+    for rank, rank_breakdown in enumerate(rank_breakdowns[: req.top_n], 1):
+        entry = _candidate_summary(rank_breakdown.candidate)
+        entry["rank"] = rank
+        entry["final_score"] = round(rank_breakdown.final_score, 3)
+        entry["soft_score"] = round(rank_breakdown.soft_score, 3)
+        entry["preference_bonus"] = round(rank_breakdown.preference_bonus, 3)
+        entry["preference_reasons"] = rank_breakdown.preference_reasons
+        entry["image_bonus"] = round(rank_breakdown.image_bonus, 3)
+        entry["image_score"] = round(rank_breakdown.image_score, 3)
+        entry["matched_signals"] = rank_breakdown.matched
+        entry["best_image_url"] = rank_breakdown.best_image_url
+        top_results.append(entry)
+
+    result["query_preview"] = {
+        "query": query,
+        "candidate_count": len(candidates),
+        "filtered_count": len(filtered),
+        "total_scored": len(rank_breakdowns),
+        "boosted_by_preferences": sum(1 for item in rank_breakdowns if item.preference_bonus > 0),
+        "max_preference_bonus": round(max((item.preference_bonus for item in rank_breakdowns), default=0.0), 3),
+        "top_results": top_results,
+    }
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Inline HTML — fully self-contained, no external files needed
 # ---------------------------------------------------------------------------
@@ -344,7 +403,7 @@ _HTML = """\
 <div class="container">
   <header>
     <h1>NestFinder Pipeline Debugger</h1>
-    <p>Step-by-step visualization of the search pipeline. Enter a query to trace each stage.</p>
+    <p>Step-by-step visualization of the search pipeline. Enter a query to trace each stage. <a href="/debug/preferences" style="color:var(--accent)">Preference Debugger →</a></p>
   </header>
   <div class="query-box">
     <label>Search Query</label>
@@ -555,6 +614,215 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 @app.get("/debug", response_class=HTMLResponse)
 def debug_page():
     return _HTML
+
+
+_PREFERENCES_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NestFinder Preference Debugger</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2d3148;
+    --text: #e1e4ed; --muted: #8b8fa7; --accent: #6c8cff; --green: #4ade80; --orange: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); line-height:1.5; min-height:100vh; }
+  .container { max-width:1280px; margin:0 auto; padding:24px; }
+  header { margin-bottom:24px; }
+  header h1 { font-size:1.5rem; font-weight:600; color:var(--accent); }
+  header p { color:var(--muted); font-size:.875rem; margin-top:4px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:18px; }
+  .label { font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:8px; }
+  .input-row { display:flex; gap:12px; flex-wrap:wrap; }
+  .input-row input, .input-row select { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; color:var(--text); font-size:.9rem; outline:none; }
+  .input-row input[type="text"] { flex:1; min-width:240px; }
+  .input-row button { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:12px 20px; font-size:.92rem; font-weight:600; cursor:pointer; }
+  .input-row button:hover { opacity:.88; }
+  .muted { color:var(--muted); }
+  .section-title { font-size:.95rem; font-weight:600; margin-bottom:10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { background:var(--surface2); border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:.78rem; }
+  .kv-grid { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:.85rem; }
+  .kv-grid .key { color:var(--muted); }
+  .kv-grid .val { color:var(--text); font-family:'JetBrains Mono','Fira Code',monospace; font-size:.8rem; }
+  .session-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .session-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; cursor:pointer; font-size:.8rem; }
+  .session-btn:hover { border-color:var(--accent); }
+  .table-wrap { overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  th { text-align:left; padding:8px 10px; color:var(--muted); font-weight:500; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; }
+  td { padding:10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:hover { background:var(--surface2); }
+  .score { font-family:'JetBrains Mono','Fira Code',monospace; font-weight:700; }
+  .score-good { color:var(--green); }
+  .score-mid { color:var(--orange); }
+  .photo { width:64px; height:64px; border-radius:8px; object-fit:cover; background:#0b0d12; border:1px solid var(--border); }
+  .empty { color:var(--muted); font-size:.84rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>NestFinder Preference Debugger</h1>
+    <p>Inspect recent sessions, derived user profiles, and the preference bonus applied to ranking. <a href="/debug" style="color:var(--accent)">Pipeline Debugger →</a></p>
+  </header>
+
+  <div class="card">
+    <label class="label">Session and Query</label>
+    <div class="input-row">
+      <input type="text" id="sessionInput" placeholder="session id, e.g. sess_..." />
+      <input type="text" id="queryInput" placeholder="optional query to preview preference bonus on candidates" />
+      <select id="topN">
+        <option value="5">Top 5</option>
+        <option value="10" selected>Top 10</option>
+        <option value="20">Top 20</option>
+      </select>
+      <button id="runBtn" onclick="runPreferenceTrace()">Inspect</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Pick a recent session below or paste one directly. Add a query if you want to preview the ranking boost.</p>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Recent Sessions</div>
+    <div id="recentSessions" class="session-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Derived Profile</div>
+    <div id="profileSummary" class="empty">Run an inspection to see the derived user profile.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Recent Events</div>
+    <div id="eventsTable" class="empty">No events loaded yet.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Recent Searches</div>
+    <div id="searchesTable" class="empty">No searches loaded yet.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Preference Bonus Preview</div>
+    <div id="queryPreview" class="empty">Add a query above to see how the user profile nudges candidate scores.</div>
+  </div>
+</div>
+
+<script>
+function esc(s){const d=document.createElement('div');d.textContent=String(s ?? '');return d.innerHTML}
+async function runPreferenceTrace(){
+  const sessionId=document.getElementById('sessionInput').value.trim() || null;
+  const query=document.getElementById('queryInput').value.trim() || null;
+  const topN=parseInt(document.getElementById('topN').value, 10);
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;
+  try{
+    const resp=await fetch('/preferences-trace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,query,top_n:topN})});
+    renderPreferenceData(await resp.json());
+  }catch(e){
+    alert('Error: '+e.message);
+  }finally{
+    btn.disabled=false;
+  }
+}
+function selectSession(sessionId){
+  document.getElementById('sessionInput').value=sessionId;
+  runPreferenceTrace();
+}
+function renderPreferenceData(data){
+  if(!data.session_id && (data.recent_sessions || []).length){
+    const latestSession = data.recent_sessions[0].session_id;
+    document.getElementById('sessionInput').value = latestSession;
+    selectSession(latestSession);
+    return;
+  }
+  renderRecentSessions(data.recent_sessions || []);
+  renderProfile(data.profile || {});
+  renderEvents(data.events || []);
+  renderSearches(data.recent_searches || []);
+  renderQueryPreview(data.query_preview);
+}
+function renderRecentSessions(sessions){
+  const el=document.getElementById('recentSessions');
+  if(!sessions.length){el.innerHTML='<div class="empty">No session activity recorded yet.</div>';return;}
+  el.innerHTML=sessions.map(s=>`<button class="session-btn" onclick="selectSession('${esc(s.session_id)}')">${esc(s.session_id)} <span class="muted">(${s.activity_count})</span></button>`).join('');
+}
+function renderProfile(profile){
+  const el=document.getElementById('profileSummary');
+  const hasProfile=(profile.preferred_cities&&profile.preferred_cities.length)||(profile.preferred_features&&profile.preferred_features.length)||(profile.favorite_listing_ids&&profile.favorite_listing_ids.length)||(profile.clicked_listing_ids&&profile.clicked_listing_ids.length);
+  let h='<div class="kv-grid">';
+  h+=`<div class="key">Session</div><div class="val">${esc(profile.session_id || '—')}</div>`;
+  h+=`<div class="key">Clicked listings</div><div class="val">${(profile.clicked_listing_ids||[]).length}</div>`;
+  h+=`<div class="key">Favorited listings</div><div class="val">${(profile.favorite_listing_ids||[]).length}</div>`;
+  h+=`<div class="key">Dismissed listings</div><div class="val">${(profile.dismissed_listing_ids||[]).length}</div>`;
+  h+=`<div class="key">Price range</div><div class="val">${profile.price_range ? `CHF ${profile.price_range.min}–${profile.price_range.max}` : '—'}</div>`;
+  h+='</div>';
+  h+='<div style="margin-top:12px"><div class="label">Preferred Cities</div>';
+  h+=(profile.preferred_cities||[]).length?`<div class="chips">${profile.preferred_cities.map(v=>`<span class="chip">${esc(v)}</span>`).join('')}</div>`:'<div class="empty">No city preference deduced yet.</div>';
+  h+='</div>';
+  h+='<div style="margin-top:12px"><div class="label">Preferred Features</div>';
+  h+=(profile.preferred_features||[]).length?`<div class="chips">${profile.preferred_features.map(v=>`<span class="chip">${esc(v)}</span>`).join('')}</div>`:'<div class="empty">No feature preference deduced yet.</div>';
+  h+='</div>';
+  h+='<div style="margin-top:12px"><div class="label">Liked Listing IDs</div>';
+  h+=(profile.favorite_listing_ids||[]).length|| (profile.clicked_listing_ids||[]).length
+    ? `<div class="chips">${[...(profile.favorite_listing_ids||[]), ...(profile.clicked_listing_ids||[])].slice(0,12).map(v=>`<span class="chip">${esc(v)}</span>`).join('')}</div>`
+    : '<div class="empty">No liked listing ids yet.</div>';
+  h+='</div>';
+  if(!hasProfile){h+='<div class="empty" style="margin-top:12px">No meaningful profile yet for this session.</div>';}
+  el.innerHTML=h;
+}
+function renderEvents(events){
+  const el=document.getElementById('eventsTable');
+  if(!events.length){el.innerHTML='<div class="empty">No events for this session.</div>';return;}
+  let h='<div class="table-wrap"><table><thead><tr><th>Time</th><th>Action</th><th>Listing</th><th>Query</th></tr></thead><tbody>';
+  for(const event of events){
+    h+=`<tr><td>${esc(event.ts || '—')}</td><td>${esc(event.action || '—')}</td><td>${esc(event.listing_id || '—')}</td><td>${esc(event.query || '—')}</td></tr>`;
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+function renderSearches(searches){
+  const el=document.getElementById('searchesTable');
+  if(!searches.length){el.innerHTML='<div class="empty">No searches recorded for this session.</div>';return;}
+  let h='<div class="table-wrap"><table><thead><tr><th>Time</th><th>Query</th><th>Results</th></tr></thead><tbody>';
+  for(const item of searches){
+    h+=`<tr><td>${esc(item.ts || '—')}</td><td>${esc(item.query || '—')}</td><td>${esc(item.result_count ?? '—')}</td></tr>`;
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+function renderQueryPreview(preview){
+  const el=document.getElementById('queryPreview');
+  if(!preview){el.innerHTML='<div class="empty">Add a query above to see the preference bonus preview.</div>';return;}
+  let h='<div class="kv-grid">';
+  h+=`<div class="key">Query</div><div class="val">${esc(preview.query || '—')}</div>`;
+  h+=`<div class="key">Candidates after hard filters</div><div class="val">${preview.candidate_count}</div>`;
+  h+=`<div class="key">After soft filtering</div><div class="val">${preview.filtered_count}</div>`;
+  h+=`<div class="key">Boosted by preferences</div><div class="val">${preview.boosted_by_preferences}</div>`;
+  h+=`<div class="key">Max preference bonus</div><div class="val">${preview.max_preference_bonus}</div>`;
+  h+='</div>';
+  if(!(preview.top_results||[]).length){el.innerHTML=h+'<div class="empty" style="margin-top:12px">No ranked results available for this query.</div>';return;}
+  h+='<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>#</th><th>Final</th><th>Soft</th><th>Pref+</th><th>Img+</th><th>Listing</th><th>Reasons</th><th>Photo</th></tr></thead><tbody>';
+  for(const item of preview.top_results){
+    const photo=item.best_image_url || item.hero_image_url;
+    h+=`<tr><td>${item.rank}</td><td class="score score-good">${Number(item.final_score || 0).toFixed(2)}</td><td class="score">${Number(item.soft_score || 0).toFixed(2)}</td><td class="score score-mid">${Number(item.preference_bonus || 0).toFixed(2)}</td><td class="score">${Number(item.image_bonus || 0).toFixed(2)}</td><td><strong>${esc(item.title || '—')}</strong><div class="muted">${esc(item.city || '—')} · ${item.price != null ? 'CHF ' + item.price.toLocaleString() : '—'}</div></td><td>${(item.preference_reasons||[]).length ? item.preference_reasons.map(v=>`<span class="chip">${esc(v)}</span>`).join(' ') : '<span class="empty">—</span>'}</td><td>${photo ? `<img class="photo" src="${photo}" alt="${esc(item.title || 'listing')}" loading="lazy" referrerpolicy="no-referrer" />` : '<span class="empty">—</span>'}</td></tr>`;
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+runPreferenceTrace();
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/debug/preferences", response_class=HTMLResponse)
+def debug_preferences_page():
+    return _PREFERENCES_HTML
 
 
 if __name__ == "__main__":

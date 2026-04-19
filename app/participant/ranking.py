@@ -12,6 +12,12 @@ from app.participant.image_rag_client import search_image_rag
 MIN_IMAGE_BONUS_CAP = 0.15
 DEFAULT_IMAGE_BONUS_CAP = 0.25
 MAX_IMAGE_BONUS_CAP = 0.8
+MAX_USER_PREFERENCE_BONUS = 0.35
+USER_PREFERENCE_LISTING_BONUS = 0.18
+USER_PREFERENCE_CITY_BONUS = 0.08
+USER_PREFERENCE_PRICE_BONUS = 0.05
+USER_PREFERENCE_FEATURE_BONUS = 0.04
+MAX_USER_PREFERENCE_FEATURE_BONUS = 0.12
 
 VISUAL_SIGNALS = {
     "bright",
@@ -61,6 +67,8 @@ class CandidateRankBreakdown:
     candidate: dict[str, Any]
     matched: list[str]
     soft_score: float
+    preference_bonus: float
+    preference_reasons: list[str]
     image_score: float
     image_bonus: float
     final_score: float
@@ -399,8 +407,9 @@ def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str
 def rank_listings(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
+    user_profile: dict[str, Any] | None = None,
 ) -> list[RankedListingResult]:
-    breakdowns = _build_rank_breakdowns(candidates, soft_facts)
+    breakdowns = _build_rank_breakdowns(candidates, soft_facts, user_profile=user_profile)
     return [
         RankedListingResult(
             listing_id=str(breakdown.candidate["listing_id"]),
@@ -418,6 +427,7 @@ def rank_listings(
 def _build_rank_breakdowns(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
+    user_profile: dict[str, Any] | None = None,
 ) -> list[CandidateRankBreakdown]:
     scored_candidates = _score_candidates(candidates, soft_facts)
     query_text = str(soft_facts.get("raw_query") or "").strip()
@@ -432,6 +442,7 @@ def _build_rank_breakdowns(
     ranked_candidates: list[tuple[float, float, float, int, CandidateRankBreakdown]] = []
     for index, (soft_score, matched, candidate) in enumerate(scored_candidates):
         listing_id = str(candidate["listing_id"])
+        preference_bonus, preference_reasons = _user_preference_bonus(candidate, user_profile)
         image_score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
         image_bonus = _image_bonus(
             image_score=image_score,
@@ -442,14 +453,16 @@ def _build_rank_breakdowns(
             candidate=candidate,
             matched=matched,
             soft_score=soft_score,
+            preference_bonus=preference_bonus,
+            preference_reasons=preference_reasons,
             image_score=image_score,
             image_bonus=image_bonus,
-            final_score=soft_score + image_bonus,
+            final_score=soft_score + preference_bonus + image_bonus,
             best_image_url=best_image_url,
             image_bonus_cap=image_bonus_cap,
         )
         ranked_candidates.append(
-            (breakdown.final_score, image_score, soft_score, index, breakdown)
+            (breakdown.final_score, image_score, soft_score + preference_bonus, index, breakdown)
         )
 
     ranked_candidates.sort(
@@ -528,23 +541,38 @@ def _image_rank_reason(
     *,
     image_score: float,
     soft_score: float,
+    preference_bonus: float,
+    preference_reasons: list[str],
 ) -> str:
     soft_reason = ", ".join(matched)
+    preference_reason = ", ".join(preference_reasons)
+    if image_score > 0 and soft_score > 0 and preference_bonus > 0 and soft_reason and preference_reason:
+        return f"soft match + user preference + image bonus: {soft_reason}; {preference_reason}"
     if image_score > 0 and soft_score > 0 and soft_reason:
         return f"soft match + image bonus: {soft_reason}"
+    if preference_bonus > 0 and soft_score > 0 and soft_reason and preference_reason:
+        return f"soft match + user preference: {soft_reason}; {preference_reason}"
     if image_score > 0 and soft_score > 0:
         return "soft match + image bonus"
+    if preference_bonus > 0 and soft_score > 0:
+        return "soft match + user preference"
+    if image_score > 0 and preference_bonus > 0 and preference_reason:
+        return f"image bonus + user preference: {preference_reason}"
     if image_score > 0:
         return "image bonus"
+    if preference_bonus > 0 and preference_reason:
+        return f"user preference boost: {preference_reason}"
     return _fallback_reason(matched)
 
 
 def _reason_for_breakdown(breakdown: CandidateRankBreakdown) -> str:
-    if breakdown.image_bonus > 0:
+    if breakdown.image_bonus > 0 or breakdown.preference_bonus > 0:
         return _image_rank_reason(
             breakdown.matched,
             image_score=breakdown.image_score,
             soft_score=breakdown.soft_score,
+            preference_bonus=breakdown.preference_bonus,
+            preference_reasons=breakdown.preference_reasons,
         )
     return _fallback_reason(breakdown.matched)
 
@@ -598,6 +626,98 @@ def _coerce_non_negative_float(value: Any) -> float:
         return max(float(value), 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _user_preference_bonus(
+    candidate: dict[str, Any],
+    user_profile: dict[str, Any] | None,
+) -> tuple[float, list[str]]:
+    if not user_profile:
+        return 0.0, []
+
+    dismissed_listing_ids = {
+        str(listing_id)
+        for listing_id in user_profile.get("dismissed_listing_ids", [])
+        if listing_id
+    }
+    listing_id = str(candidate.get("listing_id") or "")
+    if not listing_id or listing_id in dismissed_listing_ids:
+        return 0.0, []
+
+    bonus = 0.0
+    reasons: list[str] = []
+    favorite_listing_ids = {
+        str(value)
+        for value in user_profile.get("favorite_listing_ids", [])
+        if value
+    }
+    clicked_listing_ids = {
+        str(value)
+        for value in user_profile.get("clicked_listing_ids", [])
+        if value
+    }
+    if listing_id in favorite_listing_ids:
+        bonus += USER_PREFERENCE_LISTING_BONUS
+        reasons.append("favorited before")
+    elif listing_id in clicked_listing_ids:
+        bonus += USER_PREFERENCE_LISTING_BONUS * 0.6
+        reasons.append("clicked before")
+
+    preferred_cities = {
+        str(city).strip().lower()
+        for city in user_profile.get("preferred_cities", [])
+        if city
+    }
+    city = str(candidate.get("city") or "").strip().lower()
+    if city and city in preferred_cities:
+        bonus += USER_PREFERENCE_CITY_BONUS
+        reasons.append("preferred city")
+
+    preferred_features = {
+        str(feature).strip().lower()
+        for feature in user_profile.get("preferred_features", [])
+        if feature
+    }
+    candidate_features = {
+        str(feature).strip().lower()
+        for feature in candidate.get("features", [])
+        if feature
+    }
+    shared_features = sorted(candidate_features & preferred_features)
+    if shared_features:
+        feature_bonus = min(
+            MAX_USER_PREFERENCE_FEATURE_BONUS,
+            USER_PREFERENCE_FEATURE_BONUS * len(shared_features),
+        )
+        bonus += feature_bonus
+        reasons.extend(f"prefers {feature}" for feature in shared_features[:2])
+
+    price_range = user_profile.get("price_range")
+    price = candidate.get("price")
+    if (
+        isinstance(price_range, dict)
+        and price is not None
+        and price_range.get("min") is not None
+        and price_range.get("max") is not None
+    ):
+        try:
+            candidate_price = int(price)
+            min_price = int(price_range["min"])
+            max_price = int(price_range["max"])
+        except (TypeError, ValueError):
+            candidate_price = min_price = max_price = 0
+        if min_price and max_price:
+            if min_price <= candidate_price <= max_price:
+                bonus += USER_PREFERENCE_PRICE_BONUS
+                reasons.append("preferred price range")
+            else:
+                lower = int(min_price * 0.9)
+                upper = int(max_price * 1.1)
+                if lower <= candidate_price <= upper:
+                    bonus += USER_PREFERENCE_PRICE_BONUS * 0.5
+                    reasons.append("near preferred price range")
+
+    return min(bonus, MAX_USER_PREFERENCE_BONUS), reasons
 
 
 def _to_listing_data(

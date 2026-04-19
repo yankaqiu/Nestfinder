@@ -17,11 +17,17 @@ class ListingsApiClient:
         query: str,
         limit: int = 25,
         offset: int = 0,
+        session_id: str | None = None,
     ) -> dict[str, Any]:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30.0) as client:
             response = await client.post(
                 "/listings",
-                json={"query": query, "limit": limit, "offset": offset},
+                json={
+                    "query": query,
+                    "limit": limit,
+                    "offset": offset,
+                    "session_id": session_id,
+                },
             )
             response.raise_for_status()
             payload = response.json()

@@ -146,3 +146,42 @@ def test_rank_listings_limits_image_bonus_for_non_visual_queries(monkeypatch) ->
 
     assert [item.listing_id for item in ranked] == ["commute-fit", "image-heavy"]
     assert ranked[0].score > ranked[1].score
+
+
+def test_rank_listings_applies_subtle_user_preference_bonus(monkeypatch) -> None:
+    monkeypatch.setattr("app.participant.ranking.search_image_rag", lambda **kwargs: None)
+
+    ranked = rank_listings(
+        candidates=[
+            {
+                "listing_id": "preferred",
+                "title": "Apartment with balcony",
+                "city": "Zurich",
+                "price": 2600,
+                "features": ["balcony"],
+            },
+            {
+                "listing_id": "neutral",
+                "title": "Apartment",
+                "city": "Bern",
+                "price": 2600,
+                "features": [],
+            },
+        ],
+        soft_facts={
+            "raw_query": "apartment",
+            "signals": {},
+        },
+        user_profile={
+            "preferred_cities": ["Zurich"],
+            "preferred_features": ["balcony"],
+            "price_range": {"min": 2400, "max": 2800},
+            "clicked_listing_ids": [],
+            "favorite_listing_ids": [],
+            "dismissed_listing_ids": [],
+        },
+    )
+
+    assert [item.listing_id for item in ranked] == ["preferred", "neutral"]
+    assert ranked[0].score > ranked[1].score
+    assert "user preference" in ranked[0].reason

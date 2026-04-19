@@ -144,10 +144,45 @@ body {
   margin-bottom: 6px;
 }
 
+.listing-card-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .listing-rank,
 .listing-score {
   font-size: 0.72rem;
   color: #587084;
+}
+
+.favorite-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(20, 34, 51, 0.12);
+  border-radius: 999px;
+  background: #f7fafc;
+  color: #9a6f7e;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.favorite-button:hover {
+  transform: scale(1.04);
+  border-color: rgba(207, 92, 54, 0.3);
+  color: #cf5c36;
+}
+
+.favorite-button.is-favorite {
+  background: #fff1eb;
+  border-color: rgba(207, 92, 54, 0.28);
+  color: #cf5c36;
 }
 
 .listing-card h2 {

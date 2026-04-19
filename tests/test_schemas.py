@@ -11,11 +11,12 @@ from app.models.schemas import (
 
 
 def test_query_request_requires_query() -> None:
-    request = ListingsQueryRequest(query="bright apartment in zurich")
+    request = ListingsQueryRequest(query="bright apartment in zurich", session_id="sess-1")
 
     assert request.query == "bright apartment in zurich"
     assert request.limit == 25
     assert request.offset == 0
+    assert request.session_id == "sess-1"
 
 
 def test_structured_search_request_allows_explicit_filters() -> None:

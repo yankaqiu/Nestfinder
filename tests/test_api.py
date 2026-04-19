@@ -22,11 +22,15 @@ def test_post_listings_returns_ranked_results(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     os.environ["LISTINGS_RAW_DATA_DIR"] = str(repo_root / "raw_data")
     os.environ["LISTINGS_DB_PATH"] = str(tmp_path / "listings.db")
+    os.environ["PREFERENCES_DB_PATH"] = str(tmp_path / "preferences.db")
 
     from app.main import app
 
     with TestClient(app) as client:
-        response = client.post("/listings", json={"query": "3 room flat in winterthur"})
+        response = client.post(
+            "/listings",
+            json={"query": "3 room flat in winterthur", "session_id": "sess-test"},
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -36,6 +40,8 @@ def test_post_listings_returns_ranked_results(tmp_path: Path) -> None:
     assert isinstance(body["listings"], list)
     assert len(body["listings"]) <= 25
     assert body["listings"]
+    assert body["meta"]["query"] == "3 room flat in winterthur"
+    assert body["meta"]["session_id"] == "sess-test"
     assert {"listing_id", "score", "reason", "listing"} <= set(body["listings"][0].keys())
     assert {"id", "title"} <= set(body["listings"][0]["listing"].keys())
     assert isinstance(body["listings"][0]["score"], float)
@@ -46,6 +52,7 @@ def test_post_listings_search_filter_applies_explicit_hard_filters(tmp_path: Pat
     repo_root = Path(__file__).resolve().parents[1]
     os.environ["LISTINGS_RAW_DATA_DIR"] = str(repo_root / "raw_data")
     os.environ["LISTINGS_DB_PATH"] = str(tmp_path / "listings.db")
+    os.environ["PREFERENCES_DB_PATH"] = str(tmp_path / "preferences.db")
 
     from app.main import app
 
@@ -62,6 +69,7 @@ def test_post_listings_search_filter_applies_explicit_hard_filters(tmp_path: Pat
     assert isinstance(body, dict)
     assert "listings" in body
     assert "meta" in body
+    assert body["meta"]["session_id"]
     assert isinstance(body["listings"], list)
     assert len(body["listings"]) <= 5
     assert body["listings"]

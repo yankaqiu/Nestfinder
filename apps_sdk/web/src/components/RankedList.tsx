@@ -20,6 +20,8 @@ type RankedListingResult = {
 };
 
 type RankedListProps = {
+  favoriteIds: string[];
+  onFavorite: (listingId: string) => void;
   results: RankedListingResult[];
   selectedId: string | null;
   onSelect: (listingId: string) => void;
@@ -44,6 +46,8 @@ function getImageUrls(listing: ListingData): string[] {
 }
 
 export default function RankedList({
+  favoriteIds,
+  onFavorite,
   results,
   selectedId,
   onSelect,
@@ -64,6 +68,7 @@ export default function RankedList({
     <div className="ranked-list">
       {results.map((result, index) => {
         const listing = result.listing;
+        const isFavorite = favoriteIds.includes(result.listing_id);
         const features = (listing.features ?? []).slice(0, 4);
         const imageUrls = getImageUrls(listing);
         const activeImageIndex = imageIndexes[result.listing_id] ?? 0;
@@ -158,8 +163,22 @@ export default function RankedList({
               </div>
             ) : null}
             <div className="listing-card-header">
-              <span className="listing-rank">#{index + 1}</span>
-              <span className="listing-score">{result.score.toFixed(2)}</span>
+              <div className="listing-card-header-meta">
+                <span className="listing-rank">#{index + 1}</span>
+                <span className="listing-score">{result.score.toFixed(2)}</span>
+              </div>
+              <button
+                aria-label={isFavorite ? "Favorited listing" : "Favorite listing"}
+                aria-pressed={isFavorite}
+                className={`favorite-button ${isFavorite ? "is-favorite" : ""}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onFavorite(result.listing_id);
+                }}
+                type="button"
+              >
+                ♥
+              </button>
             </div>
             <h2>{listing.title}</h2>
             <p className="listing-meta">
