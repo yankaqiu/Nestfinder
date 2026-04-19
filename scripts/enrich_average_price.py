@@ -61,5 +61,20 @@ df["price_per_m2_vs_municipality"] = df["price_per_m2"] / muni_den
 df["price_per_m2_vs_district"] = df["price_per_m2"] / district_den
 df["price_per_m2_vs_canton"] = df["price_per_m2"] / canton_den
 
+
+def price_level_label(ratio: float | int | None) -> str | None:
+    if pd.isna(ratio):
+        return None
+    if ratio < 0.9:
+        return "cheaper_than_area"
+    if ratio <= 1.1:
+        return "similar_to_area"
+    return "more_expensive_than_area"
+
+
+df["price_per_m2_vs_municipality_label"] = df[
+    "price_per_m2_vs_municipality"
+].apply(price_level_label)
+
 df.to_csv(OUTPUT_CSV, index=False)
 print(f"Saved {OUTPUT_CSV}")
