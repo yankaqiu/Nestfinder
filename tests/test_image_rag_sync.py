@@ -190,3 +190,34 @@ def test_image_rag_search_uses_only_preindexed_listings(tmp_path: Path) -> None:
     assert result.meta["indexed_candidate_count"] == 1
     assert result.meta["missing_image_count"] == 2
     assert [item.listing_id for item in result.results] == ["indexed-listing"]
+
+
+def test_sync_state_store_handles_large_listing_id_batches(tmp_path: Path) -> None:
+    store = SyncStateStore(tmp_path / "state.db")
+    model_name = "test-model"
+
+    indexed_ids = [f"listing-{index}" for index in range(0, 1200, 3)]
+    for listing_id in indexed_ids:
+        store.upsert_listing_state(
+            listing_id=listing_id,
+            model_name=model_name,
+            image_urls_hash=f"hash-{listing_id}",
+            image_count=1,
+            last_error=None,
+        )
+
+    missing_image_ids = [f"listing-missing-{index}" for index in range(10)]
+    for listing_id in missing_image_ids:
+        store.upsert_listing_state(
+            listing_id=listing_id,
+            model_name=model_name,
+            image_urls_hash=f"hash-{listing_id}",
+            image_count=0,
+            last_error=None,
+        )
+
+    listing_ids = [f"listing-{index}" for index in range(1200)] + missing_image_ids + ["not-indexed"]
+
+    result = store.list_indexed_listing_ids(listing_ids=listing_ids, model_name=model_name)
+
+    assert result == [listing_id for listing_id in listing_ids if listing_id in set(indexed_ids)]

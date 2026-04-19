@@ -21,6 +21,8 @@ class ListingSyncState:
 
 
 class SyncStateStore:
+    _LISTING_ID_QUERY_CHUNK_SIZE = 900
+
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,21 +107,22 @@ class SyncStateStore:
         if not listing_ids:
             return []
 
-        placeholders = ", ".join("?" for _ in listing_ids)
+        indexed_ids: set[str] = set()
         with self._connection() as connection:
-            rows = connection.execute(
-                f"""
-                SELECT listing_id
-                FROM listing_sync_state
-                WHERE model_name = ?
-                  AND last_error IS NULL
-                  AND image_count > 0
-                  AND listing_id IN ({placeholders})
-                """,
-                [model_name, *listing_ids],
-            ).fetchall()
-
-        indexed_ids = {str(row["listing_id"]) for row in rows}
+            for chunk in _chunked(listing_ids, self._LISTING_ID_QUERY_CHUNK_SIZE):
+                placeholders = ", ".join("?" for _ in chunk)
+                rows = connection.execute(
+                    f"""
+                    SELECT listing_id
+                    FROM listing_sync_state
+                    WHERE model_name = ?
+                      AND last_error IS NULL
+                      AND image_count > 0
+                      AND listing_id IN ({placeholders})
+                    """,
+                    [model_name, *chunk],
+                ).fetchall()
+                indexed_ids.update(str(row["listing_id"]) for row in rows)
         return [listing_id for listing_id in listing_ids if listing_id in indexed_ids]
 
     def set_service_state(self, *, key: str, value: str | None) -> None:
@@ -172,3 +175,7 @@ class SyncStateStore:
         connection = sqlite3.connect(self._db_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+
+def _chunked(values: list[str], size: int) -> list[list[str]]:
+    return [values[index : index + size] for index in range(0, len(values), size)]
