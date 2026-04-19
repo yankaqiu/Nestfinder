@@ -33,56 +33,46 @@ Return ONLY a valid JSON object — no explanation, no markdown, no code fences.
 JSON schema:
 {
   "signals": {
-    "bright": 1.0,
-    "quiet": 1.0,
-    "modern": 0.8,
-    "views": 0.6,
-    "near_lake": 0.6,
-    "public_transport": 1.0,
-    "short_commute": 1.2,
-    "furnished": 0.8,
-    "family_friendly": 0.8,
-    "child_friendly": 0.7,
-    "good_schools": 0.7,
-    "green_area": 0.6,
-    "lively": 0.6,
-    "affordable": 0.5,
-    "spacious": 0.6,
-    "well_maintained": 0.5,
-    "outdoor_space": 0.7,
-    "balcony": 0.8,
-    "parking": 0.7,
-    "fireplace": 0.5,
-    "private_laundry": 0.8,
-    "elevator": 0.7,
-    "garden": 0.6,
-    "dishwasher": 0.6,
-    "cellar": 0.4,
-    "washing_machine": 0.7,
-    "modern_kitchen": 0.7,
-    "modern_bathroom": 0.5,
-    "minergie": 0.6,
-    "new_build": 0.6,
-    "pets_allowed": 0.5,
-    "student": 0.4,
-    "near_eth": 1.2,
-    "near_epfl": 1.2,
-    "near_hb": 1.0,
-    "specific_move_in": 0.3
+    "<signal_name>": <weight>
   },
   "max_commute_minutes": 30,
   "commute_destination": "ETH",
   "preferred_min_area_sqm": 70
 }
 
+Available signals and their BASE weights (use as starting point):
+bright=1.0, quiet=1.0, modern=0.8, views=0.6, near_lake=0.6,
+public_transport=1.0, short_commute=1.2, furnished=0.8,
+family_friendly=0.8, child_friendly=0.7, good_schools=0.7,
+green_area=0.6, lively=0.6, affordable=0.5, spacious=0.6,
+well_maintained=0.5, outdoor_space=0.7, balcony=0.8, parking=0.7,
+fireplace=0.5, private_laundry=0.8, elevator=0.7, garden=0.6,
+dishwasher=0.6, cellar=0.4, washing_machine=0.7, modern_kitchen=0.7,
+modern_bathroom=0.5, minergie=0.6, new_build=0.6, pets_allowed=0.5,
+student=0.4, near_eth=1.2, near_epfl=1.2, near_hb=1.0, specific_move_in=0.3
+
+INTENSITY RULES — scale the base weight by the multiplier that matches how the user expresses the preference:
+- "would be nice", "ideally", "if possible", "preferably"  → multiply by 0.5
+- "prefer", "like", "would like" (no strong qualifier)     → multiply by 0.8
+- no qualifier / neutral mention                           → multiply by 1.0  (use base weight)
+- "really want", "important", "would love"                 → multiply by 1.3
+- "must have", "need", "require", "essential", "only if"   → multiply by 1.8
+
+Cap final weight at 2.0. Round to 2 decimal places.
+
 Rules:
-- Include ONLY signals that are actually present in the query
-- Use the default weight values from the schema above for each signal
+- Include ONLY signals actually present in the query
+- Apply intensity scaling to each signal individually based on how the user expressed it
 - max_commute_minutes: extract numeric commute limit (1-120 min only)
-- commute_destination: the destination of the commute if named (ETH, EPFL, HB, Hauptbahnhof, etc.)
+- commute_destination: destination of the commute if named (ETH, EPFL, HB, Hauptbahnhof, etc.)
 - preferred_min_area_sqm: minimum area preference in sqm (only if stated)
 - Signals dictionary may be empty {} if no soft preferences found
 - Return ONLY the JSON object
+
+Examples:
+  "I'd love a balcony, and must have parking" → balcony=1.04 (0.8×1.3), parking=1.26 (0.7×1.8)
+  "bright apartment would be nice"            → bright=0.5 (1.0×0.5)
+  "quiet is essential"                        → quiet=1.8 (1.0×1.8)
 """
 
 
