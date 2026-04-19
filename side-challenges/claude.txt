@@ -1,0 +1,10 @@
+We used Claude mainly as a fast engineering and extraction tool in this challenge.
+
+- Rapid prototyping: it helped us build a lightweight debug dashboard to inspect the pipeline, compare results, and spot ranking issues quickly.
+- Query extraction: we use Claude Haiku 4.5 in `app/participant/hard_fact_extraction.py` and `app/participant/soft_fact_extraction.py` to turn natural-language queries into structured hard filters and weighted soft preferences.
+- Coding in general: a lot of implementation, refactoring, and iteration happened with Claude as a coding assistant.
+- Data enrichment: in `app/enrichment/text_extraction.py` we use Claude to extract listing attributes from free-text descriptions, like balcony, elevator, parking, furnished, pets allowed, and similar features.
+- SBB side challenge: in `agents/sbb_tool.py` we built a Claude-powered transport agent. We do not use the full agent in the final app, but we reused the code and ideas around tool-based querying.
+- Benchmark/debug cases: Claude also helped generate and refine realistic test queries and use cases for the debug dashboard and evaluation flow.
+
+So overall, Claude was most useful for fast prototyping, query understanding, enrichment, and speeding up development.
