@@ -79,8 +79,16 @@ def step_report(conn: sqlite3.Connection) -> None:
         "price_per_sqm", "price_vs_city_median",
         "municipality", "bfs_number", "lake_distance_m", "is_urban",
         "text_features_json",
+        "nearest_stop_name", "nearest_stop_distance_m",
+        "nearest_train_name", "nearest_train_distance_m",
+        "nearest_hb_name", "nearest_hb_distance_m",
+        "municipality_name", "district_name", "canton_name",
+        "population_total", "population_density", "population_density_bucket",
+        "price_per_m2", "price_per_m2_vs_municipality",
+        "avg_price_per_m2_municipality", "avg_price_per_m2_district",
         "global_score", "score_value", "score_amenity", "score_location",
         "score_building", "score_completeness", "score_freshness",
+        "score_transit",
     ]
     total = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
     print(f"\n{'='*60}")

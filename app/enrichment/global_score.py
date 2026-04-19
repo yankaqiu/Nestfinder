@@ -1,12 +1,13 @@
 """Global quality score for listings.
 
-Computes a composite score in [0, 1] from six orthogonal dimensions:
-  1. Value        – price relative to city median (cheaper = better value)
+Computes a composite score in [0, 1] from seven orthogonal dimensions:
+  1. Value        – price relative to municipality/city median
   2. Amenity      – count of positive feature flags
-  3. Location     – urban flag, lake proximity, transit proximity
+  3. Location     – urban flag, lake proximity
   4. Building     – construction/renovation year, floor level
   5. Completeness – how many fields are populated
   6. Freshness    – how soon the listing is available
+  7. Transit      – 3-tier transit proximity (stop, train, HB)
 
 The global score acts as a subtle quality boost on top of the existing
 soft-signal, user-preference, and image-rag ranking layers.
@@ -21,20 +22,51 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-W_VALUE = 0.25
-W_AMENITY = 0.20
-W_LOCATION = 0.20
-W_BUILDING = 0.15
+W_VALUE = 0.20
+W_AMENITY = 0.18
+W_LOCATION = 0.17
+W_BUILDING = 0.13
 W_COMPLETENESS = 0.10
 W_FRESHNESS = 0.10
+W_TRANSIT = 0.12
 
 _NEUTRAL = 0.4
 
 
-def _score_value(price_vs_median: float | None) -> float:
-    if price_vs_median is None:
+def _bin3_gs(
+    value: float | None,
+    t1: float, t2: float, t3: float,
+    *,
+    lower_is_better: bool = True,
+) -> float:
+    """3-bin scorer for global_score module."""
+    if value is None:
+        return 0.0
+    if lower_is_better:
+        if value <= t3:
+            return 1.0
+        if value <= t2:
+            return 0.66
+        if value <= t1:
+            return 0.33
+    else:
+        if value >= t3:
+            return 1.0
+        if value >= t2:
+            return 0.66
+        if value >= t1:
+            return 0.33
+    return 0.0
+
+
+def _score_value(
+    price_per_m2_vs_muni: float | None,
+    price_vs_city_median: float | None,
+) -> float:
+    ratio = price_per_m2_vs_muni or price_vs_city_median
+    if ratio is None:
         return _NEUTRAL
-    return max(0.0, min(1.0, 1.0 - (price_vs_median - 0.5)))
+    return max(0.0, min(1.0, 1.0 - (ratio - 0.5)))
 
 
 def _score_amenity(features_json: Any, text_features_json: Any) -> float:
@@ -157,8 +189,24 @@ def _score_freshness(available_from: str | None) -> float:
     return 0.1
 
 
+def _score_transit(
+    stop_m: float | None,
+    train_m: float | None,
+    hb_m: float | None,
+) -> float:
+    s_stop = _bin3_gs(stop_m, 600, 300, 150, lower_is_better=True)
+    s_train = _bin3_gs(train_m, 2000, 800, 300, lower_is_better=True)
+    s_hb = _bin3_gs(hb_m, 5000, 2000, 800, lower_is_better=True)
+    if s_stop == 0 and s_train == 0 and s_hb == 0:
+        return _NEUTRAL
+    return 0.4 * s_stop + 0.35 * s_train + 0.25 * s_hb
+
+
 def compute_global_score(row: dict[str, Any]) -> dict[str, float]:
-    sv = _score_value(row.get("price_vs_city_median"))
+    sv = _score_value(
+        row.get("price_per_m2_vs_municipality"),
+        row.get("price_vs_city_median"),
+    )
     sa = _score_amenity(row.get("features_json") or row.get("features"), row.get("text_features_json"))
     sl = _score_location(
         row.get("is_urban"),
@@ -172,6 +220,11 @@ def compute_global_score(row: dict[str, Any]) -> dict[str, float]:
     )
     sc = _score_completeness(row)
     sf = _score_freshness(row.get("available_from"))
+    st = _score_transit(
+        row.get("nearest_stop_distance_m"),
+        row.get("nearest_train_distance_m"),
+        row.get("nearest_hb_distance_m"),
+    )
 
     global_s = (
         W_VALUE * sv
@@ -180,6 +233,7 @@ def compute_global_score(row: dict[str, Any]) -> dict[str, float]:
         + W_BUILDING * sb
         + W_COMPLETENESS * sc
         + W_FRESHNESS * sf
+        + W_TRANSIT * st
     )
 
     return {
@@ -190,6 +244,7 @@ def compute_global_score(row: dict[str, Any]) -> dict[str, float]:
         "score_building": round(sb, 4),
         "score_completeness": round(sc, 4),
         "score_freshness": round(sf, 4),
+        "score_transit": round(st, 4),
     }
 
 
@@ -260,7 +315,13 @@ def explain_score(
 
     value_text = _pick_label(sv, _VALUE_LABELS)
     if candidate:
-        value_text += _format_pct(candidate.get("price_vs_city_median"))
+        value_text += _format_pct(
+            candidate.get("price_per_m2_vs_municipality")
+            or candidate.get("price_vs_city_median")
+        )
+        label = candidate.get("price_per_m2_vs_municipality_label")
+        if label:
+            value_text = str(label)
     parts.append(value_text)
 
     loc_text = _pick_label(sl, _LOCATION_LABELS)
@@ -274,6 +335,10 @@ def explain_score(
         pt_distance = candidate.get("distance_public_transport")
         if pt_distance is not None and pt_distance < 500:
             extras.append(f"{int(pt_distance)}m to public transport")
+        train_name = candidate.get("nearest_train_name")
+        train_dist = candidate.get("nearest_train_distance_m")
+        if train_name and train_dist is not None and train_dist < 1500:
+            extras.append(f"{int(train_dist)}m to {train_name}")
         if extras:
             loc_text += f" ({', '.join(extras)})"
     parts.append(loc_text)
@@ -306,11 +371,15 @@ _SELECT_QUERY = """
     SELECT
         listing_id,
         price_vs_city_median,
+        price_per_m2_vs_municipality,
         features_json,
         text_features_json,
         is_urban,
         lake_distance_m,
         distance_public_transport,
+        nearest_stop_distance_m,
+        nearest_train_distance_m,
+        nearest_hb_distance_m,
         year_built,
         renovation_year,
         floor_level,
@@ -340,7 +409,7 @@ def enrich_global_score(
         return {"scored": 0}
 
     logger.info("Computing global_score for %d listings", len(rows))
-    updates: list[tuple[float, float, float, float, float, float, float, str]] = []
+    updates: list[tuple] = []
 
     for row in rows:
         row_dict = dict(row)
@@ -354,6 +423,7 @@ def enrich_global_score(
                 scores["score_building"],
                 scores["score_completeness"],
                 scores["score_freshness"],
+                scores["score_transit"],
                 row_dict["listing_id"],
             )
         )
@@ -364,7 +434,7 @@ def enrich_global_score(
             "UPDATE listings SET "
             "global_score = ?, score_value = ?, score_amenity = ?, "
             "score_location = ?, score_building = ?, "
-            "score_completeness = ?, score_freshness = ? "
+            "score_completeness = ?, score_freshness = ?, score_transit = ? "
             "WHERE listing_id = ?",
             updates[i : i + batch_size],
         )

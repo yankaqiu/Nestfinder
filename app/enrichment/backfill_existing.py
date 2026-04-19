@@ -157,12 +157,16 @@ def backfill_city_canton(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 def compute_price_metrics(conn: sqlite3.Connection) -> dict[str, int]:
-    """Compute price_per_sqm and price_vs_city_median."""
+    """Compute price_per_sqm and price_vs_city_median.
+
+    Skips price_per_sqm for rows where v3.1 price_per_m2 is already present.
+    """
     stats = {"price_per_sqm_filled": 0, "price_vs_median_filled": 0}
 
     conn.execute(
         "UPDATE listings SET price_per_sqm = ROUND(CAST(price AS REAL) / area, 2) "
-        "WHERE price IS NOT NULL AND area IS NOT NULL AND area >= 10 "
+        "WHERE price_per_sqm IS NULL AND price_per_m2 IS NULL "
+        "AND price IS NOT NULL AND area IS NOT NULL AND area >= 10 "
         "AND price > 100 AND price < 50000"
     )
     stats["price_per_sqm_filled"] = conn.execute(

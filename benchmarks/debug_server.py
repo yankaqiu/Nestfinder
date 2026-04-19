@@ -93,6 +93,23 @@ def _candidate_summary(c: dict[str, Any]) -> dict[str, Any]:
         "municipality": c.get("municipality"),
         "lake_distance_m": c.get("lake_distance_m"),
         "is_urban": c.get("is_urban"),
+        # --- v3.1 data ---
+        "nearest_stop_name": c.get("nearest_stop_name"),
+        "nearest_stop_distance_m": c.get("nearest_stop_distance_m"),
+        "nearest_train_name": c.get("nearest_train_name"),
+        "nearest_train_distance_m": c.get("nearest_train_distance_m"),
+        "nearest_hb_name": c.get("nearest_hb_name"),
+        "nearest_hb_distance_m": c.get("nearest_hb_distance_m"),
+        "municipality_name": c.get("municipality_name"),
+        "district_name": c.get("district_name"),
+        "canton_name": c.get("canton_name"),
+        "population_total": c.get("population_total"),
+        "population_density": c.get("population_density"),
+        "population_density_bucket": c.get("population_density_bucket"),
+        "price_per_m2": c.get("price_per_m2"),
+        "avg_price_per_m2_municipality": c.get("avg_price_per_m2_municipality"),
+        "price_per_m2_vs_municipality": c.get("price_per_m2_vs_municipality"),
+        "price_per_m2_vs_municipality_label": c.get("price_per_m2_vs_municipality_label"),
     }
 
 
@@ -212,7 +229,15 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
             if sig_name == "area_pref":
                 signal_breakdown["area_pref"] = 0.3
             else:
-                signal_breakdown[sig_name] = signals.get(sig_name, 0)
+                weight = signals.get(sig_name, 0)
+                matcher = _SIGNAL_MATCHERS.get(sig_name)
+                strength = 0.0
+                if matcher:
+                    try:
+                        strength = matcher(rank_breakdown.candidate)
+                    except Exception:
+                        strength = 1.0
+                signal_breakdown[sig_name] = round(weight * strength, 3)
         entry["signal_breakdown"] = signal_breakdown
         ranked_output.append(entry)
 
@@ -467,6 +492,14 @@ _HTML = """\
       <button onclick="setQ('Appartement moderne à Lausanne, proche du lac, avec ascenseur, lave-vaisselle, et balcon, maximum 3000 CHF')">🆕 FR: modern + lake + enriched features</button>
       <button onclick="setQ('Cerco un appartamento moderno a Lugano vicino al lago, con ascensore, lavastoviglie, balcone, massimo 2500 CHF')">🆕 IT: modern + lake + features</button>
 
+      <div style="width:100%;font-size:.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">🚆 v3.1: Transit + Demographics + Price Benchmarking</div>
+      <button onclick="setQ('well-connected apartment near a train station in Zurich, 3 rooms')">🆕 well_connected + near_train</button>
+      <button onclick="setQ('Wohnung nahe Hauptbahnhof Zürich, gut angebunden, 2.5 Zimmer unter 2500 CHF')">🆕 near_hauptbahnhof + well_connected</button>
+      <button onclick="setQ('affordable apartment in a small town, rural area, good value')">🆕 small_town + low_density + good_value</button>
+      <button onclick="setQ('Wohnung in einer grossen Stadt, lebhaft, zentral, mindestens 3 Zimmer')">🆕 large_municipality + high_density + lively</button>
+      <button onclick="setQ('good value apartment near train station, quiet village, 3.5 rooms')">🆕 good_value_local + near_train + small_town</button>
+      <button onclick="setQ('modern apartment in Zürich, well connected, near lake, with balcony, under 4000 CHF')">🆕 FULL v3.1: modern + transit + lake</button>
+
       <div style="width:100%;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:2px">📋 Original presets</div>
       <button onclick="setQ('Ich suche eine Wohnung im Raum Zürich, Dübendorf oder Wallisellen, idealerweise 2.5 bis 3.5 Zimmer, ab 70 m², Budget bis 3100 CHF, max 25 Minuten mit dem ÖV bis Stadelhofen')">DE: Multi-city commute</button>
       <button onclick="setQ('Wir suchen als Familie zu dritt etwas im Raum Kilchberg, Rüschlikon oder Thalwil, am liebsten nahe am See oder mit schneller Verbindung nach Zürich, mindestens 3.5 Zimmer, ab 90 m², Budget bis 4300 CHF, gern mit Balkon / Terrasse, Lift, Keller')">DE: Family lakeside</button>
@@ -586,12 +619,13 @@ function globalScoreBlock(gs){
   if(!gs) return '';
   const g=gs.global_score!=null?gs.global_score:0;
   const dims=[
-    ['Value',gs.score_value,0.25,'#66bb6a'],
-    ['Amenity',gs.score_amenity,0.20,'#42a5f5'],
-    ['Location',gs.score_location,0.20,'#ab47bc'],
-    ['Building',gs.score_building,0.15,'#ffa726'],
+    ['Value',gs.score_value,0.20,'#66bb6a'],
+    ['Amenity',gs.score_amenity,0.18,'#42a5f5'],
+    ['Location',gs.score_location,0.17,'#ab47bc'],
+    ['Building',gs.score_building,0.13,'#ffa726'],
     ['Complete',gs.score_completeness,0.10,'#26c6da'],
     ['Fresh',gs.score_freshness,0.10,'#ef5350'],
+    ['Transit',gs.score_transit,0.12,'#29b6f6'],
   ];
   let h=`<div style="margin-top:6px;padding:8px 10px;background:rgba(108,140,255,.06);border:1px solid rgba(108,140,255,.15);border-radius:6px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em">Global Score</span><span style="font-size:.95rem;font-weight:700;color:${g>=0.6?'var(--green)':g>=0.4?'var(--orange)':'var(--red)'}">${g.toFixed(3)}</span></div><div style="display:flex;gap:4px;height:10px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.05)">`;
   for(const[name,val,weight,col]of dims){
@@ -630,10 +664,22 @@ function enrichBlock(r){
   if(r.year_built!=null) items.push(['Built',r.year_built]);
   if(r.renovation_year!=null) items.push(['Renovated',r.renovation_year]);
   if(r.is_furnished!=null) items.push(['Furnished',r.is_furnished?'Yes':'No']);
-  if(r.price_per_sqm!=null) items.push(['CHF/m²',r.price_per_sqm.toFixed(1)]);
+  if(r.price_per_sqm!=null) items.push(['CHF/m² (old)',r.price_per_sqm.toFixed(1)]);
+  if(r.price_per_m2!=null) items.push(['CHF/m²',r.price_per_m2.toFixed(1)]);
   if(r.price_vs_city_median!=null){const pct=((r.price_vs_city_median-1)*100).toFixed(0);const col=r.price_vs_city_median<0.85?'var(--green)':r.price_vs_city_median>1.15?'var(--red)':'var(--text)';items.push(['vs City Median',`<span style="color:${col}">${(r.price_vs_city_median*100).toFixed(0)}% (${pct>0?'+'+pct:pct}%)</span>`]);}
-  if(r.municipality) items.push(['Municipality',esc(r.municipality)]);
+  if(r.price_per_m2_vs_municipality!=null){const pct=((r.price_per_m2_vs_municipality-1)*100).toFixed(0);const col=r.price_per_m2_vs_municipality<0.85?'var(--green)':r.price_per_m2_vs_municipality>1.15?'var(--red)':'var(--text)';items.push(['vs Municipality',`<span style="color:${col}">${(r.price_per_m2_vs_municipality*100).toFixed(0)}% (${pct>0?'+'+pct:pct}%)</span>`]);}
+  if(r.price_per_m2_vs_municipality_label) items.push(['Value Label',`<span style="font-weight:600">${esc(r.price_per_m2_vs_municipality_label)}</span>`]);
+  if(r.municipality_name) items.push(['Municipality',esc(r.municipality_name)]);
+  else if(r.municipality) items.push(['Municipality',esc(r.municipality)]);
+  if(r.district_name) items.push(['District',esc(r.district_name)]);
+  if(r.canton_name) items.push(['Canton (v3.1)',esc(r.canton_name)]);
   if(r.lake_distance_m!=null){const col=r.lake_distance_m<2000?'var(--green)':r.lake_distance_m<5000?'var(--orange)':'var(--muted)';items.push(['Lake distance',`<span style="color:${col}">${(r.lake_distance_m/1000).toFixed(1)} km</span>`]);}
+  if(r.nearest_stop_name||r.nearest_stop_distance_m!=null){const n=r.nearest_stop_name||'stop';const d=r.nearest_stop_distance_m!=null?Math.round(r.nearest_stop_distance_m)+'m':'?';const col=(r.nearest_stop_distance_m||9999)<300?'var(--green)':(r.nearest_stop_distance_m||9999)<600?'var(--orange)':'var(--muted)';items.push(['Nearest stop',`<span style="color:${col}">${d}</span> – ${esc(n)}`]);}
+  if(r.nearest_train_name||r.nearest_train_distance_m!=null){const n=r.nearest_train_name||'train';const d=r.nearest_train_distance_m!=null?Math.round(r.nearest_train_distance_m)+'m':'?';const col=(r.nearest_train_distance_m||9999)<800?'var(--green)':(r.nearest_train_distance_m||9999)<2000?'var(--orange)':'var(--muted)';items.push(['Nearest train',`<span style="color:${col}">${d}</span> – ${esc(n)}`]);}
+  if(r.nearest_hb_name||r.nearest_hb_distance_m!=null){const n=r.nearest_hb_name||'HB';const d=r.nearest_hb_distance_m!=null?Math.round(r.nearest_hb_distance_m)+'m':'?';const col=(r.nearest_hb_distance_m||9999)<2000?'var(--green)':(r.nearest_hb_distance_m||9999)<5000?'var(--orange)':'var(--muted)';items.push(['Nearest HB',`<span style="color:${col}">${d}</span> – ${esc(n)}`]);}
+  if(r.population_density!=null) items.push(['Pop. density',`${r.population_density.toFixed(0)} /km²`]);
+  if(r.population_density_bucket) items.push(['Density bucket',esc(r.population_density_bucket)]);
+  if(r.population_total!=null) items.push(['Population',r.population_total.toLocaleString()]);
   if(r.is_urban!=null) items.push(['Urban/Rural',r.is_urban?'🏙️ Urban':'🌿 Rural']);
   if(!items.length) return '';
   let h='<div style="margin-top:8px;padding:8px 10px;background:rgba(108,140,255,.06);border:1px solid rgba(108,140,255,.15);border-radius:6px"><div style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Enrichment Data</div><div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:.78rem">';

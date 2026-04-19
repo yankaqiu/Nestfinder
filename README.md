@@ -336,6 +336,8 @@ The default hard-filter implementation supports simple structured filters over t
 - `city`
 - `postal_code`
 - `canton`
+- `district_name`
+- `municipality_name`
 - `min_price`
 - `max_price`
 - `min_rooms`
@@ -411,7 +413,25 @@ Run the tests:
 uv run pytest tests -q
 ```
 
-If you want to rebuild the SQLite database from scratch, remove the generated database file or clear the mounted Docker volume and restart the service.
+### Rebuilding the database
+
+To rebuild the SQLite database from scratch (imports all CSVs including the v3.1 enriched data, runs enrichment pipeline):
+
+```bash
+uv run python -m scripts.reimport_db            # drops + rebuilds
+uv run python -m scripts.reimport_db --keep-old  # backs up old DB first
+```
+
+See [`app/enrichment/README.md`](app/enrichment/README.md) for full documentation of the enrichment pipeline, all 45 ranking signals, and the binned scoring system.
+
+### Debug server
+
+Step-by-step pipeline visualization with preset queries:
+
+```bash
+uv run python -m benchmarks.debug_server
+# → http://127.0.0.1:8899/debug
+```
 
 ## AWS Credentials
 

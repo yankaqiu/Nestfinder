@@ -61,6 +61,14 @@ NON_VISUAL_SIGNALS = {
     "near_epfl",
     "near_hb",
     "specific_move_in",
+    "near_train",
+    "near_hauptbahnhof",
+    "well_connected",
+    "good_value_local",
+    "low_density",
+    "high_density",
+    "small_town",
+    "large_municipality",
 }
 
 
@@ -81,13 +89,20 @@ class CandidateRankBreakdown:
     explanation: str
 
 # ---------------------------------------------------------------------------
-# Signal matchers: each maps a soft signal name to a function that checks
-# whether a candidate listing matches that signal.
-# Returns True/False.
+# Signal matchers: each maps a soft signal name to a function returning
+# a float in [0.0, 1.0] representing match strength.
+#   0.0  = no match
+#   0.33 = weak match (bottom bin)
+#   0.66 = good match (middle bin)
+#   1.0  = strong match (top bin)
+# Binary signals (feature present/absent) return 1.0 or 0.0.
 #
 # Strategy: prefer enriched DB columns (data-driven), fall back to
-# text regex when enrichment data is missing.
+# text regex when enrichment data is missing (text fallback = 0.5).
 # ---------------------------------------------------------------------------
+
+_TEXT_FALLBACK = 0.5
+
 
 def _text(c: dict) -> str:
     """Combined searchable text for a candidate."""
@@ -99,264 +114,361 @@ def _has_feature(c: dict, feat: str) -> bool:
     return any(feat.lower() in str(f).lower() for f in feats)
 
 
-def _dist_lt(c: dict, field: str, threshold: float) -> bool | None:
-    """Returns True if distance < threshold, False if >=, None if no data."""
+def _get_float(c: dict, field: str) -> float | None:
     val = c.get(field)
     if val is None:
         return None
     try:
-        return float(val) < threshold
+        return float(val)
     except (TypeError, ValueError):
         return None
 
 
-def _enriched_lt(c: dict, field: str, threshold: float) -> bool | None:
-    """Check enriched numeric column < threshold. None if missing."""
-    val = c.get(field)
-    if val is None:
-        return None
-    try:
-        return float(val) < threshold
-    except (TypeError, ValueError):
-        return None
-
-
-def _enriched_gt(c: dict, field: str, threshold: float) -> bool | None:
-    val = c.get(field)
-    if val is None:
-        return None
-    try:
-        return float(val) > threshold
-    except (TypeError, ValueError):
-        return None
-
-
-def _enriched_gte(c: dict, field: str, threshold: float) -> bool | None:
-    val = c.get(field)
-    if val is None:
-        return None
-    try:
-        return float(val) >= threshold
-    except (TypeError, ValueError):
-        return None
-
-
-_SIGNAL_MATCHERS: dict[str, Any] = {}
+def _bin3(
+    value: float | None,
+    t1: float, t2: float, t3: float,
+    *,
+    lower_is_better: bool = True,
+) -> float:
+    """3-bin scorer. Returns 0.0, 0.33, 0.66, or 1.0."""
+    if value is None:
+        return 0.0
+    if lower_is_better:
+        if value <= t3:
+            return 1.0
+        if value <= t2:
+            return 0.66
+        if value <= t1:
+            return 0.33
+    else:
+        if value >= t3:
+            return 1.0
+        if value >= t2:
+            return 0.66
+        if value >= t1:
+            return 0.33
+    return 0.0
 
 
 def _r(pattern: str) -> re.Pattern:
     return re.compile(pattern, re.I)
 
 
+_SIGNAL_MATCHERS: dict[str, Any] = {}
+
+
 def _register_signals():
-    """Build the signal matcher table with enriched-data-first matching."""
+    """Build the signal matcher table. Each matcher returns float 0.0-1.0."""
     m = _SIGNAL_MATCHERS
 
-    # --- Enriched + regex: bright ---
-    # Higher floors get more light; text fallback for all
-    m["bright"] = lambda c: (
-        (_enriched_gte(c, "floor_level", 3) is True)
-        or bool(_r(
+    # --- Binned: bright (floor level + text) ---
+    m["bright"] = lambda c: max(
+        _bin3(_get_float(c, "floor_level"), 2, 4, 6, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
             r"\bhell[e]?\b|\bbright\b|\blumineu[xs]\b|\bsonnig\b|\bsunny\b|\blichtdurchflutet\b|\blicht\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    m["quiet"] = lambda c: (
-        bool(_r(
+    # --- Binned: quiet (population density + text) ---
+    m["quiet"] = lambda c: max(
+        _bin3(_get_float(c, "population_density"), 1000, 500, 200, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
             r"\bruhig\b|\bquiet\b|\bcalme\b|\bstill[e]?\s+lage\b|\bruhige\s+lage\b"
-        ).search(_text(c)))
-        or _dist_lt(c, "distance_shop", 500) is True
-        or (c.get("is_urban") == 0)
+        ).search(_text(c)) else 0.0,
     )
 
-    # --- Enriched: modern (year_built > 2010 or renovation < 10 yrs) ---
-    m["modern"] = lambda c: (
-        (_enriched_gt(c, "year_built", 2010) is True)
-        or (_enriched_gt(c, "renovation_year", 2015) is True)
-        or bool(_r(
+    # --- Binned: modern (year_built / renovation_year + text) ---
+    m["modern"] = lambda c: max(
+        _bin3(_get_float(c, "year_built"), 2005, 2015, 2020, lower_is_better=False),
+        _bin3(_get_float(c, "renovation_year"), 2015, 2020, 2023, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
             r"\bmodern[e]?\b|\brenoviert\b|\bsaniert\b|\bneuwertig\b|\bcontemporary\b|\bstylish\b|\bdesign\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    m["views"] = lambda c: (
-        (_enriched_gte(c, "floor_level", 5) is True)
-        or bool(_r(
+    # --- Binned: views (floor level + text) ---
+    m["views"] = lambda c: max(
+        _bin3(_get_float(c, "floor_level"), 3, 5, 8, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
             r"\baussicht\b|\bview\b|\bvue\b|\bpanorama\b|\bseeblick\b|\bbergblick\b|\bweitsicht\b|\bfernblick\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    # --- Enriched: near_lake (lake_distance_m) + text fallback ---
-    m["near_lake"] = lambda c: (
-        (_enriched_lt(c, "lake_distance_m", 2000) is True)
-        or bool(_r(
+    # --- Binned: near_lake (lake_distance_m + text) ---
+    m["near_lake"] = lambda c: max(
+        _bin3(_get_float(c, "lake_distance_m"), 5000, 2000, 800, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
             r"\bseenähe\b|\bnear.*lake\b|\blac\b|\bseeblick\b|\bam\s+see\b|\blake\s+view\b|\bzürichsee\b|\bgenfersee\b|\bvierwaldstättersee\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    m["public_transport"] = lambda c: (
-        _dist_lt(c, "distance_public_transport", 500) is True
-        or bool(_r(
+    # --- Binned: public_transport (nearest_stop_distance_m + text) ---
+    m["public_transport"] = lambda c: max(
+        _bin3(_get_float(c, "nearest_stop_distance_m"), 600, 300, 150, lower_is_better=True),
+        _bin3(_get_float(c, "distance_public_transport"), 600, 300, 150, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
             r"\böv\b|\bpublic\s+transport\b|\btram\b|\bs-bahn\b|\bbus\s+station\b|\bbahnhof\b|\bmetro\b|\bgute\s+anbindung\b|\banbindung\b|\bverkehrsanbindung\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
     m["short_commute"] = m["public_transport"]
 
-    # --- Enriched: furnished (is_furnished column) ---
-    m["furnished"] = lambda c: (
+    # --- Binary: furnished ---
+    m["furnished"] = lambda c: 1.0 if (
         (c.get("is_furnished") == 1)
         or _has_feature(c, "furnished")
         or bool(_r(
             r"\bmöbliert\b|\bfurnished\b|\bmeublé\b|\bwith\s+furniture\b"
         ).search(_text(c)))
+    ) else 0.0
+
+    # --- Binned: family_friendly (kindergarten + school distances) ---
+    m["family_friendly"] = lambda c: max(
+        _bin3(_get_float(c, "distance_kindergarten"), 1500, 800, 400, lower_is_better=True),
+        _bin3(_get_float(c, "distance_school_1"), 2000, 1000, 500, lower_is_better=True),
+        _TEXT_FALLBACK if (
+            _has_feature(c, "child_friendly")
+            or bool(_r(r"\bfamilie\b|\bfamily\b|\bfamilienfreundlich\b|\bfamily.friendly\b|\bkinder\b").search(_text(c)))
+        ) else 0.0,
     )
 
-    m["family_friendly"] = lambda c: (
+    # --- Binary: child_friendly ---
+    m["child_friendly"] = lambda c: 1.0 if (
         _has_feature(c, "child_friendly")
-        or _dist_lt(c, "distance_kindergarten", 1000) is True
-        or _dist_lt(c, "distance_school_1", 1500) is True
-        or bool(_r(r"\bfamilie\b|\bfamily\b|\bfamilienfreundlich\b|\bfamily.friendly\b|\bkinder\b").search(_text(c)))
-    )
-
-    m["child_friendly"] = lambda c: (
-        _has_feature(c, "child_friendly")
-        or _dist_lt(c, "distance_kindergarten", 800) is True
         or bool(_r(r"\bkinderfreundlich\b|\bchild.friendly\b|\bspielplatz\b|\bplayground\b|\bkinder\b").search(_text(c)))
+    ) else max(
+        _bin3(_get_float(c, "distance_kindergarten"), 1200, 600, 300, lower_is_better=True),
+        0.0,
     )
 
-    m["good_schools"] = lambda c: (
-        _dist_lt(c, "distance_school_1", 1000) is True
-        or _dist_lt(c, "distance_school_2", 1500) is True
-        or bool(_r(r"\bschule\b|\bschool\b|\bécole\b|\bgute\s+schulen\b").search(_text(c)))
+    # --- Binned: good_schools (school distance) ---
+    m["good_schools"] = lambda c: max(
+        _bin3(_get_float(c, "distance_school_1"), 2000, 1000, 500, lower_is_better=True),
+        _TEXT_FALLBACK if _r(r"\bschule\b|\bschool\b|\bécole\b|\bgute\s+schulen\b").search(_text(c)) else 0.0,
     )
 
-    m["green_area"] = lambda c: (
-        bool(_r(
-            r"\bpark\b|\bgarten\b|\bgarden\b|\bgrün[e]?\b|\bwald\b|\bnatur\b|\bforest\b|\bverdure\b"
-        ).search(_text(c)))
-    )
+    # --- Binary: green_area (text only) ---
+    m["green_area"] = lambda c: 1.0 if bool(_r(
+        r"\bpark\b|\bgarten\b|\bgarden\b|\bgrün[e]?\b|\bwald\b|\bnatur\b|\bforest\b|\bverdure\b"
+    ).search(_text(c))) else 0.0
 
-    m["lively"] = lambda c: (
-        (c.get("is_urban") == 1)
-        or bool(_r(
+    # --- Binned: lively (population density + text) ---
+    m["lively"] = lambda c: max(
+        _bin3(_get_float(c, "population_density"), 1500, 3000, 4000, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
             r"\bbelebt\b|\blively\b|\bvibrant\b|\banimé\b|\bgastronomie\b|\brestaurant\b|\bcafé\b|\bcafe\b|\bausgang\b|\bnachtleben\b|\bbar[s]?\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    # --- Enriched: affordable (price_vs_city_median) ---
-    m["affordable"] = lambda c: (
-        (_enriched_lt(c, "price_vs_city_median", 0.85) is True)
-        or bool(_r(
+    # --- Binned: affordable (price_per_m2_vs_municipality, fallback city median + text) ---
+    m["affordable"] = lambda c: max(
+        _bin3(
+            _get_float(c, "price_per_m2_vs_municipality") or _get_float(c, "price_vs_city_median"),
+            1.0, 0.85, 0.70, lower_is_better=True,
+        ),
+        _TEXT_FALLBACK if _r(
             r"\bgünstig\b|\baffordable\b|\bpreiswert\b|\bcheap\b|\bbon\s+marché\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    m["spacious"] = lambda c: _area_gte(c, 80) or bool(_r(
-        r"\bgeräumig\b|\bspacious\b|\bgrosszügig\b|\bviel\s+platz\b"
-    ).search(_text(c)))
+    # --- Binned: spacious (area per room ratio + text) ---
+    m["spacious"] = lambda c: max(
+        _bin3(_area_per_room(c), 25, 35, 45, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
+            r"\bgeräumig\b|\bspacious\b|\bgrosszügig\b|\bviel\s+platz\b"
+        ).search(_text(c)) else 0.0,
+    )
 
-    # --- Enriched: well_maintained (renovation_year recent) ---
-    m["well_maintained"] = lambda c: (
-        (_enriched_gt(c, "renovation_year", 2018) is True)
-        or bool(_r(
+    # --- Binned: well_maintained (renovation year + text) ---
+    m["well_maintained"] = lambda c: max(
+        _bin3(_get_float(c, "renovation_year"), 2010, 2018, 2022, lower_is_better=False),
+        _TEXT_FALLBACK if _r(
             r"\bgepflegt\b|\bwell.maintained\b|\bsauber\b|\bpropre\b|\brefurbished\b|\btop\s+zustand\b"
-        ).search(_text(c)))
+        ).search(_text(c)) else 0.0,
     )
 
-    m["outdoor_space"] = lambda c: (
+    # --- Binary: outdoor_space ---
+    m["outdoor_space"] = lambda c: 1.0 if (
         _has_feature(c, "balcony")
         or bool(_r(r"\bbalkon\b|\bbalcony\b|\bterr?asse\b|\bgarten\b|\bgarden\b|\bsitzplatz\b|\bloggia\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["balcony"] = lambda c: (
+    # --- Binary: balcony ---
+    m["balcony"] = lambda c: 1.0 if (
         _has_feature(c, "balcony")
         or bool(_r(r"\bbalkon\b|\bbalcony\b|\bbalcon\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["parking"] = lambda c: (
+    # --- Binary: parking ---
+    m["parking"] = lambda c: 1.0 if (
         _has_feature(c, "parking") or _has_feature(c, "garage")
         or bool(_r(r"\bparkplatz\b|\bparking\b|\bgarage\b|\beinstellplatz\b|\btiefgarage\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["fireplace"] = lambda c: (
+    # --- Binary: fireplace ---
+    m["fireplace"] = lambda c: 1.0 if (
         _has_feature(c, "fireplace")
         or bool(_r(r"\bkamin\b|\bfireplace\b|\bcheminée\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["private_laundry"] = lambda c: (
+    # --- Binary: private_laundry ---
+    m["private_laundry"] = lambda c: 1.0 if (
         _has_feature(c, "private_laundry") or _has_feature(c, "washing_machine")
         or bool(_r(r"\bwaschmaschine\b|\bwasher\b|\bwaschturm\b|\bprivate\s+laundry\b|\beigene\s+waschmaschine\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["elevator"] = lambda c: (
+    # --- Binary: elevator ---
+    m["elevator"] = lambda c: 1.0 if (
         _has_feature(c, "elevator")
         or bool(_r(r"\blift\b|\belevator\b|\baufzug\b|\bascenseur\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["garden"] = lambda c: (
+    # --- Binary: garden ---
+    m["garden"] = lambda c: 1.0 if (
         _has_feature(c, "garden")
         or bool(_r(r"\bgarten\b|\bgarden\b|\bjardin\b|\bgiardino\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["dishwasher"] = lambda c: (
+    # --- Binary: dishwasher ---
+    m["dishwasher"] = lambda c: 1.0 if (
         _has_feature(c, "dishwasher")
         or bool(_r(r"\bgeschirrspüler\b|\bdishwasher\b|\blave.vaisselle\b|\babwaschmaschine\b|\bspülmaschine\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["cellar"] = lambda c: (
+    # --- Binary: cellar ---
+    m["cellar"] = lambda c: 1.0 if (
         _has_feature(c, "cellar")
         or bool(_r(r"\bkeller\b|\bcellar\b|\bcave\b|\bcantina\b|\bkellerabteil\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["washing_machine"] = lambda c: (
+    # --- Binary: washing_machine ---
+    m["washing_machine"] = lambda c: 1.0 if (
         _has_feature(c, "washing_machine") or _has_feature(c, "private_laundry")
         or bool(_r(r"\bwaschmaschine\b|\bwashing\s+machine\b|\blave.linge\b|\bwaschturm\b|\bbuanderie\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["modern_kitchen"] = lambda c: bool(_r(
+    # --- Binary: modern_kitchen ---
+    m["modern_kitchen"] = lambda c: 1.0 if bool(_r(
         r"\bmoderne?\s+küche\b|\bmodern\s+kitchen\b|\beinbauküche\b|\bcuisine\s+équipée\b|\bkücheninsel\b"
-    ).search(_text(c)))
+    ).search(_text(c))) else 0.0
 
-    m["modern_bathroom"] = lambda c: bool(_r(
+    # --- Binary: modern_bathroom ---
+    m["modern_bathroom"] = lambda c: 1.0 if bool(_r(
         r"\bmoderne?\s+bad\b|\bmodern\s+bathroom\b|\bregendousche\b|\brain\s+shower\b"
-    ).search(_text(c)))
+    ).search(_text(c))) else 0.0
 
-    m["minergie"] = lambda c: (
+    # --- Binary: minergie ---
+    m["minergie"] = lambda c: 1.0 if (
         _has_feature(c, "minergie")
         or bool(_r(r"\bminergie\b|\benergy.efficient\b|\bniedrigenergie\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    # --- Enriched: new_build (year_built >= 2022) ---
-    m["new_build"] = lambda c: (
-        (_enriched_gte(c, "year_built", 2022) is True)
+    # --- Binary: new_build ---
+    m["new_build"] = lambda c: 1.0 if (
+        (_get_float(c, "year_built") or 0) >= 2022
         or _has_feature(c, "new_build")
         or bool(_r(r"\bneubau\b|\bnew\s+build\b|\bnewly\s+built\b|\berstvermietung\b|\berst(e|-)bezug\b").search(_text(c)))
-    )
+    ) else 0.0
 
-    m["pets_allowed"] = lambda c: (
+    # --- Binary: pets_allowed ---
+    m["pets_allowed"] = lambda c: 1.0 if (
         _has_feature(c, "pets_allowed")
         or bool(_r(r"\bhaustier\b|\bpets?\s+allowed\b|\bhund\b|\bkatze\b|\bdog\b|\bcat\b").search(_text(c)))
+    ) else 0.0
+
+    # --- Binary: student ---
+    m["student"] = lambda c: 1.0 if bool(_r(
+        r"\bstudent\b|\bstudenten\b|\bétudiants?\b|\bwg\b|\bwohngemeinschaft\b|\bshared\s+flat\b"
+    ).search(_text(c))) else 0.0
+
+    # --- Binary: near_eth, near_epfl ---
+    m["near_eth"] = lambda c: 1.0 if bool(_r(r"\beth\b").search(_text(c))) else 0.0
+    m["near_epfl"] = lambda c: 1.0 if bool(_r(r"\bepfl\b").search(_text(c))) else 0.0
+
+    # --- Binned: near_hb (nearest_hb_distance_m + text) ---
+    m["near_hb"] = lambda c: max(
+        _bin3(_get_float(c, "nearest_hb_distance_m"), 5000, 2000, 800, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
+            r"\bhb\b|\bhauptbahnhof\b|\bmain\s+station\b|\bgare\s+centrale\b|\bam\s+bahnhof\b|\bbeim\s+bahnhof\b"
+        ).search(_text(c)) else 0.0,
     )
 
-    m["student"] = lambda c: bool(_r(
-        r"\bstudent\b|\bstudenten\b|\bétudiants?\b|\bwg\b|\bwohngemeinschaft\b|\bshared\s+flat\b"
-    ).search(_text(c)))
+    # --- Binary: specific_move_in ---
+    m["specific_move_in"] = lambda c: 1.0 if _check_available_soon(c) else 0.0
 
-    m["near_eth"] = lambda c: bool(_r(r"\beth\b").search(_text(c)))
-    m["near_epfl"] = lambda c: bool(_r(r"\bepfl\b").search(_text(c)))
-    m["near_hb"] = lambda c: bool(_r(
-        r"\bhb\b|\bhauptbahnhof\b|\bmain\s+station\b|\bgare\s+centrale\b|\bam\s+bahnhof\b|\bbeim\s+bahnhof\b"
-    ).search(_text(c)))
+    # -----------------------------------------------------------------------
+    # NEW v3.1 signals
+    # -----------------------------------------------------------------------
 
-    # --- Enriched: specific_move_in (available_from date matching) ---
-    m["specific_move_in"] = lambda c: _check_available_soon(c)
+    # --- Binned: near_train (nearest_train_distance_m) ---
+    m["near_train"] = lambda c: max(
+        _bin3(_get_float(c, "nearest_train_distance_m"), 2000, 800, 300, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
+            r"\btrain\b|\bzug\b|\bs-bahn\b|\brain\s+station\b|\bbahnhof\b"
+        ).search(_text(c)) else 0.0,
+    )
+
+    # --- Binned: near_hauptbahnhof (nearest_hb_distance_m) ---
+    m["near_hauptbahnhof"] = lambda c: max(
+        _bin3(_get_float(c, "nearest_hb_distance_m"), 5000, 2000, 800, lower_is_better=True),
+        _TEXT_FALLBACK if _r(
+            r"\bhauptbahnhof\b|\bhb\b|\bmain\s+station\b|\bgare\s+centrale\b"
+        ).search(_text(c)) else 0.0,
+    )
+
+    # --- Binned: well_connected (stop + train composite) ---
+    m["well_connected"] = lambda c: _well_connected_score(c)
+
+    # --- Binned: good_value_local (price_per_m2_vs_municipality) ---
+    m["good_value_local"] = lambda c: _bin3(
+        _get_float(c, "price_per_m2_vs_municipality"),
+        1.0, 0.85, 0.70, lower_is_better=True,
+    )
+
+    # --- Binned: low_density (population_density, lower = stronger) ---
+    m["low_density"] = lambda c: _bin3(
+        _get_float(c, "population_density"),
+        1500, 800, 300, lower_is_better=True,
+    )
+
+    # --- Binned: high_density (population_density, higher = stronger) ---
+    m["high_density"] = lambda c: _bin3(
+        _get_float(c, "population_density"),
+        1000, 2000, 4000, lower_is_better=False,
+    )
+
+    # --- Binned: small_town (population_total, lower = stronger) ---
+    m["small_town"] = lambda c: _bin3(
+        _get_float(c, "population_total"),
+        30000, 10000, 5000, lower_is_better=True,
+    )
+
+    # --- Binned: large_municipality (population_total, higher = stronger) ---
+    m["large_municipality"] = lambda c: _bin3(
+        _get_float(c, "population_total"),
+        20000, 50000, 100000, lower_is_better=False,
+    )
+
+    # --- Negative binned: overpriced_warning ---
+    m["overpriced_warning"] = lambda c: _bin3(
+        _get_float(c, "price_per_m2_vs_municipality"),
+        1.3, 1.5, 1.8, lower_is_better=False,
+    )
 
 
 _register_signals()
 
 
+def _well_connected_score(c: dict) -> float:
+    """Composite transit connectivity: stop proximity + train proximity."""
+    stop = _bin3(_get_float(c, "nearest_stop_distance_m"), 500, 300, 150, lower_is_better=True)
+    train = _bin3(_get_float(c, "nearest_train_distance_m"), 1500, 800, 400, lower_is_better=True)
+    if stop > 0 and train > 0:
+        return min(1.0, 0.5 * stop + 0.5 * train)
+    return max(stop, train) * 0.5
+
+
 def _check_available_soon(c: dict) -> bool:
-    """True if the listing is available within 3 months."""
     avail = c.get("available_from")
     if not avail:
         return False
@@ -366,6 +478,14 @@ def _check_available_soon(c: dict) -> bool:
         return avail_date <= cutoff
     except (ValueError, TypeError):
         return False
+
+
+def _area_per_room(c: dict) -> float | None:
+    area = _get_float(c, "area")
+    rooms = _get_float(c, "rooms")
+    if area is None or rooms is None or rooms < 1:
+        return None
+    return area / rooms
 
 
 def _area_gte(c: dict, min_sqm: float) -> bool:
@@ -394,6 +514,7 @@ def _get_global_scores(candidate: dict[str, Any]) -> dict[str, float]:
             "score_building": float(candidate.get("score_building") or 0.0),
             "score_completeness": float(candidate.get("score_completeness") or 0.0),
             "score_freshness": float(candidate.get("score_freshness") or 0.0),
+            "score_transit": float(candidate.get("score_transit") or 0.0),
         }
     return compute_global_score(candidate)
 
@@ -413,9 +534,11 @@ def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str
 
     for signal_name, weight in signals.items():
         matcher = _SIGNAL_MATCHERS.get(signal_name)
-        if matcher and matcher(candidate):
-            score += weight
-            matched.append(signal_name)
+        if matcher:
+            strength = matcher(candidate)
+            if strength > 0:
+                score += weight * strength
+                matched.append(signal_name)
 
     pref_area = soft_facts.get("preferred_min_area_sqm")
     if pref_area and _area_gte(candidate, pref_area):
@@ -804,6 +927,12 @@ def _to_listing_data(
     if hero_image_url_override and not image_urls:
         image_urls = [hero_image_url_override]
 
+    train_name = candidate.get("nearest_train_name")
+    train_dist = candidate.get("nearest_train_distance_m")
+    nearest_station = None
+    if train_name and train_dist is not None:
+        nearest_station = f"{int(train_dist)}m to {train_name}"
+
     return ListingData(
         id=str(candidate["listing_id"]),
         title=candidate["title"],
@@ -825,6 +954,12 @@ def _to_listing_data(
         offer_type=candidate.get("offer_type"),
         object_category=candidate.get("object_category"),
         object_type=candidate.get("object_type"),
+        price_per_m2=candidate.get("price_per_m2"),
+        value_label=candidate.get("price_per_m2_vs_municipality_label"),
+        district_name=candidate.get("district_name"),
+        municipality_name=candidate.get("municipality_name"),
+        nearest_station=nearest_station,
+        population_density_bucket=candidate.get("population_density_bucket"),
     )
 
 

@@ -60,6 +60,32 @@ def create_schema(connection: sqlite3.Connection) -> None:
             lake_distance_m REAL,
             is_urban INTEGER,
             text_features_json TEXT,
+            nearest_stop_name TEXT,
+            nearest_stop_distance_m REAL,
+            nearest_train_name TEXT,
+            nearest_train_distance_m REAL,
+            nearest_hb_name TEXT,
+            nearest_hb_distance_m REAL,
+            municipality_code INTEGER,
+            district_code INTEGER,
+            canton_code INTEGER,
+            municipality_name TEXT,
+            district_name TEXT,
+            canton_name TEXT,
+            municipality_name_demo TEXT,
+            population_total INTEGER,
+            area_ha REAL,
+            area_km2 REAL,
+            population_density REAL,
+            population_density_bucket TEXT,
+            price_per_m2 REAL,
+            avg_price_per_m2_municipality REAL,
+            avg_price_per_m2_district REAL,
+            avg_price_per_m2_canton REAL,
+            price_per_m2_vs_municipality REAL,
+            price_per_m2_vs_district REAL,
+            price_per_m2_vs_canton REAL,
+            price_per_m2_vs_municipality_label TEXT,
             location_address_json TEXT,
             orig_data_json TEXT,
             raw_json TEXT NOT NULL
@@ -77,7 +103,7 @@ def import_csvs(connection: sqlite3.Connection, csv_paths: Iterable[Path]) -> No
 
             connection.executemany(
                 """
-                INSERT INTO listings (
+                INSERT OR REPLACE INTO listings (
                     listing_id,
                     platform_id,
                     scrape_source,
@@ -126,10 +152,36 @@ def import_csvs(connection: sqlite3.Connection, csv_paths: Iterable[Path]) -> No
                     lake_distance_m,
                     is_urban,
                     text_features_json,
+                    nearest_stop_name,
+                    nearest_stop_distance_m,
+                    nearest_train_name,
+                    nearest_train_distance_m,
+                    nearest_hb_name,
+                    nearest_hb_distance_m,
+                    municipality_code,
+                    district_code,
+                    canton_code,
+                    municipality_name,
+                    district_name,
+                    canton_name,
+                    municipality_name_demo,
+                    population_total,
+                    area_ha,
+                    area_km2,
+                    population_density,
+                    population_density_bucket,
+                    price_per_m2,
+                    avg_price_per_m2_municipality,
+                    avg_price_per_m2_district,
+                    avg_price_per_m2_canton,
+                    price_per_m2_vs_municipality,
+                    price_per_m2_vs_district,
+                    price_per_m2_vs_canton,
+                    price_per_m2_vs_municipality_label,
                     location_address_json,
                     orig_data_json,
                     raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (""" + ", ".join("?" for _ in range(77)) + """)
                 """,
                 rows,
             )
@@ -144,4 +196,6 @@ def create_indexes(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_listings_rooms ON listings(rooms)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_listings_latitude ON listings(latitude)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_listings_longitude ON listings(longitude)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_listings_district_name ON listings(district_name)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_listings_municipality_name ON listings(municipality_name)")
     connection.commit()

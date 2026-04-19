@@ -18,6 +18,9 @@ _RESIDENTIAL_SIGNALS = re.compile(
 )
 
 
+_OVERPRICED_THRESHOLD = 1.5
+
+
 def _is_junk(candidate: dict[str, Any]) -> bool:
     title = (candidate.get("title") or "").lower()
     if _JUNK_RE.search(title) and not _RESIDENTIAL_SIGNALS.search(title):
@@ -28,9 +31,23 @@ def _is_junk(candidate: dict[str, Any]) -> bool:
     return False
 
 
+def _is_value_outlier(candidate: dict[str, Any]) -> bool:
+    """Flag listings significantly overpriced vs municipality average."""
+    ratio = candidate.get("price_per_m2_vs_municipality")
+    if ratio is None:
+        return False
+    try:
+        return float(ratio) > _OVERPRICED_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
 def filter_soft_facts(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
 ) -> list[dict[str, Any]]:
     filtered = [c for c in candidates if not _is_junk(c)]
-    return filtered if filtered else candidates
+    outliers = [c for c in filtered if _is_value_outlier(c)]
+    non_outliers = [c for c in filtered if not _is_value_outlier(c)]
+    result = non_outliers + outliers
+    return result if result else candidates

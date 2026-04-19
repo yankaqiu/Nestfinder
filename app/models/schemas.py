@@ -10,6 +10,8 @@ class HardFilters(BaseModel):
     city: list[str] | None = None
     postal_code: list[str] | None = None
     canton: str | None = None
+    district_name: str | None = None
+    municipality_name: str | None = None
     min_price: int | None = Field(default=None, ge=0)
     max_price: int | None = Field(default=None, ge=0)
     min_rooms: float | None = Field(default=None, ge=0)
@@ -58,6 +60,12 @@ class ListingData(BaseModel):
     offer_type: str | None = None
     object_category: str | None = None
     object_type: str | None = None
+    price_per_m2: float | None = None
+    value_label: str | None = None
+    district_name: str | None = None
+    municipality_name: str | None = None
+    nearest_station: str | None = None
+    population_density_bucket: str | None = None
 
 
 class GlobalScores(BaseModel):
@@ -68,6 +76,7 @@ class GlobalScores(BaseModel):
     score_building: float = 0.0
     score_completeness: float = 0.0
     score_freshness: float = 0.0
+    score_transit: float = 0.0
 
 
 class RankedListingResult(BaseModel):

@@ -49,7 +49,10 @@ well_maintained=0.5, outdoor_space=0.7, balcony=0.8, parking=0.7,
 fireplace=0.5, private_laundry=0.8, elevator=0.7, garden=0.6,
 dishwasher=0.6, cellar=0.4, washing_machine=0.7, modern_kitchen=0.7,
 modern_bathroom=0.5, minergie=0.6, new_build=0.6, pets_allowed=0.5,
-student=0.4, near_eth=1.2, near_epfl=1.2, near_hb=1.0, specific_move_in=0.3
+student=0.4, near_eth=1.2, near_epfl=1.2, near_hb=1.0, specific_move_in=0.3,
+near_train=0.9, near_hauptbahnhof=1.0, well_connected=1.0,
+good_value_local=0.7, low_density=0.6, high_density=0.6,
+small_town=0.5, large_municipality=0.5
 
 INTENSITY RULES — scale the base weight by the multiplier that matches how the user expresses the preference:
 - "would be nice", "ideally", "if possible", "preferably"  → multiply by 0.5
@@ -141,6 +144,14 @@ _SOFT_SIGNALS: list[tuple[str, re.Pattern[str], float]] = [
         r"|january|february|march|april|may|june|july|august|september|october|november|december)\b",
         re.I,
     ), 0.3),
+    ("near_train", re.compile(r"\btrain\b|\bzug\b|\bs-bahn\b|\brain\s+station\b|\bzugstation\b", re.I), 0.9),
+    ("near_hauptbahnhof", re.compile(r"\bhauptbahnhof\b|\bhb\b|\bmain\s+station\b|\bgare\s+centrale\b", re.I), 1.0),
+    ("well_connected", re.compile(r"\bgut\s+angebunden\b|\bwell.connected\b|\bgute\s+anbindung\b|\bwell.served\b", re.I), 1.0),
+    ("good_value_local", re.compile(r"\bgood\s+value\b|\bgutes?\s+preis\b|\bpreiswert\b|\bfair\s+price\b", re.I), 0.7),
+    ("low_density", re.compile(r"\bländlich\b|\brural\b|\bwenig\s+dicht\b|\bnot.*crowded\b|\bruhige\s+gegend\b", re.I), 0.6),
+    ("high_density", re.compile(r"\bzentr\w+\b|\bdowntown\b|\bcity\s+center\b|\bin\s+der\s+stadt\b|\burban\b|\bstadtzentrum\b", re.I), 0.6),
+    ("small_town", re.compile(r"\bklein\w*\s+(?:stadt|ort|dorf|gemeinde)\b|\bsmall\s+town\b|\bvillage\b|\bdorf\b", re.I), 0.5),
+    ("large_municipality", re.compile(r"\bgross\w*\s+stadt\b|\bbig\s+city\b|\blarge\s+town\b|\bgrosse\s+gemeinde\b", re.I), 0.5),
 ]
 
 _COMMUTE_TIME_RE = re.compile(

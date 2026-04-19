@@ -14,6 +14,8 @@ class HardFilterParams:
     city: list[str] | None = None
     postal_code: list[str] | None = None
     canton: str | None = None
+    district_name: str | None = None
+    municipality_name: str | None = None
     min_price: int | None = None
     max_price: int | None = None
     min_rooms: float | None = None
@@ -71,6 +73,14 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
     if filters.canton:
         where_clauses.append("UPPER(canton) = ?")
         params.append(filters.canton.upper())
+
+    if filters.district_name:
+        where_clauses.append("LOWER(district_name) = ?")
+        params.append(filters.district_name.lower())
+
+    if filters.municipality_name:
+        where_clauses.append("LOWER(municipality_name) = ?")
+        params.append(filters.municipality_name.lower())
 
     if filters.min_price is not None:
         where_clauses.append("price >= ?")
@@ -141,13 +151,40 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
             lake_distance_m,
             is_urban,
             text_features_json,
+            nearest_stop_name,
+            nearest_stop_distance_m,
+            nearest_train_name,
+            nearest_train_distance_m,
+            nearest_hb_name,
+            nearest_hb_distance_m,
+            municipality_code,
+            district_code,
+            canton_code,
+            municipality_name,
+            district_name,
+            canton_name,
+            municipality_name_demo,
+            population_total,
+            area_ha,
+            area_km2,
+            population_density,
+            population_density_bucket,
+            price_per_m2,
+            avg_price_per_m2_municipality,
+            avg_price_per_m2_district,
+            avg_price_per_m2_canton,
+            price_per_m2_vs_municipality,
+            price_per_m2_vs_district,
+            price_per_m2_vs_canton,
+            price_per_m2_vs_municipality_label,
             global_score,
             score_value,
             score_amenity,
             score_location,
             score_building,
             score_completeness,
-            score_freshness
+            score_freshness,
+            score_transit
         FROM listings
     """
 

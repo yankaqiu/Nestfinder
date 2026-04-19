@@ -50,11 +50,12 @@ URBAN_PLZS: set[str] = {
 
 
 def enrich_neighborhood(conn: sqlite3.Connection) -> dict[str, int]:
-    """Set is_urban based on postal_code for all listings."""
-    stats = {"urban": 0, "non_urban": 0, "no_plz": 0}
+    """Set is_urban based on postal_code for listings without v3.1 density data."""
+    stats = {"urban": 0, "non_urban": 0, "no_plz": 0, "skipped_has_density": 0}
 
     rows = conn.execute(
-        "SELECT listing_id, postal_code FROM listings WHERE is_urban IS NULL"
+        "SELECT listing_id, postal_code FROM listings "
+        "WHERE is_urban IS NULL AND population_density_bucket IS NULL"
     ).fetchall()
 
     if not rows:

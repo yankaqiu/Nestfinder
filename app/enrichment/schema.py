@@ -30,6 +30,40 @@ ENRICHMENT_COLUMNS: list[tuple[str, str]] = [
     # --- Neighborhood metadata (Step 6) ---
     ("is_urban", "INTEGER"),
 
+    # --- v3.1: transit proximity ---
+    ("nearest_stop_name", "TEXT"),
+    ("nearest_stop_distance_m", "REAL"),
+    ("nearest_train_name", "TEXT"),
+    ("nearest_train_distance_m", "REAL"),
+    ("nearest_hb_name", "TEXT"),
+    ("nearest_hb_distance_m", "REAL"),
+
+    # --- v3.1: administrative geography ---
+    ("municipality_code", "INTEGER"),
+    ("district_code", "INTEGER"),
+    ("canton_code", "INTEGER"),
+    ("municipality_name", "TEXT"),
+    ("district_name", "TEXT"),
+    ("canton_name", "TEXT"),
+    ("municipality_name_demo", "TEXT"),
+
+    # --- v3.1: demographics ---
+    ("population_total", "INTEGER"),
+    ("area_ha", "REAL"),
+    ("area_km2", "REAL"),
+    ("population_density", "REAL"),
+    ("population_density_bucket", "TEXT"),
+
+    # --- v3.1: multi-level price benchmarking ---
+    ("price_per_m2", "REAL"),
+    ("avg_price_per_m2_municipality", "REAL"),
+    ("avg_price_per_m2_district", "REAL"),
+    ("avg_price_per_m2_canton", "REAL"),
+    ("price_per_m2_vs_municipality", "REAL"),
+    ("price_per_m2_vs_district", "REAL"),
+    ("price_per_m2_vs_canton", "REAL"),
+    ("price_per_m2_vs_municipality_label", "TEXT"),
+
     # --- Global quality score (Step 8) ---
     ("global_score", "REAL"),
     ("score_value", "REAL"),
@@ -38,6 +72,7 @@ ENRICHMENT_COLUMNS: list[tuple[str, str]] = [
     ("score_building", "REAL"),
     ("score_completeness", "REAL"),
     ("score_freshness", "REAL"),
+    ("score_transit", "REAL"),
 ]
 
 
