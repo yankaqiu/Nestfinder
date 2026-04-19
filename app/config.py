@@ -31,6 +31,7 @@ class Settings:
     s3_bucket: str
     s3_region: str
     s3_prefix: str
+    max_unfiltered_candidates: int
 
 
 def get_settings() -> Settings:
@@ -43,4 +44,5 @@ def get_settings() -> Settings:
         ),
         s3_region=os.getenv("LISTINGS_S3_REGION", "eu-central-2"),
         s3_prefix=os.getenv("LISTINGS_S3_PREFIX", "prod"),
+        max_unfiltered_candidates=int(os.getenv("LISTINGS_MAX_UNFILTERED_CANDIDATES", "1000")),
     )

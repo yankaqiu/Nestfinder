@@ -26,7 +26,7 @@ class HardFilterParams:
     features: list[str] | None = None
     offer_type: str | None = None
     object_category: list[str] | None = None
-    limit: int = 20
+    limit: int | None = 20
     offset: int = 0
     sort_by: str | None = None
 
@@ -193,6 +193,19 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
 
     query += " ORDER BY " + _sort_clause(filters.sort_by)
 
+    apply_sql_pagination = (
+        filters.limit is not None
+        and filters.latitude is None
+        and filters.longitude is None
+        and filters.radius_km is None
+    )
+    if apply_sql_pagination:
+        query += " LIMIT ?"
+        params.append(filters.limit)
+        if filters.offset > 0:
+            query += " OFFSET ?"
+            params.append(filters.offset)
+
     with get_connection(db_path) as connection:
         rows = connection.execute(query, params).fetchall()
 
@@ -219,7 +232,13 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
         nearby_rows.sort(key=lambda item: (item[0], item[1]["listing_id"]))
         parsed_rows = [row for _, row in nearby_rows]
 
-    return parsed_rows[filters.offset : filters.offset + filters.limit]
+    if apply_sql_pagination:
+        return parsed_rows
+
+    start = max(filters.offset, 0)
+    if filters.limit is None:
+        return parsed_rows[start:]
+    return parsed_rows[start : start + filters.limit]
 
 
 def _parse_row(row: dict[str, Any]) -> dict[str, Any]:

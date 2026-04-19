@@ -28,6 +28,7 @@ def listings(request: ListingsQueryRequest) -> ListingsResponse:
         limit=request.limit,
         offset=request.offset,
         session_id=request.session_id,
+        max_unfiltered_candidates=settings.max_unfiltered_candidates,
     )
 
 
@@ -38,4 +39,5 @@ def listings_search(request: ListingsSearchRequest) -> ListingsResponse:
         db_path=settings.db_path,
         hard_facts=request.hard_filters,
         session_id=request.session_id,
+        max_unfiltered_candidates=settings.max_unfiltered_candidates,
     )
