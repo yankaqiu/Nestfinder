@@ -16,6 +16,7 @@ type RankedListingResult = {
   listing_id: string;
   score: number;
   reason: string;
+  explanation?: string | null;
   listing: ListingData;
 };
 
@@ -187,7 +188,8 @@ export default function RankedList({
             <p className="listing-meta">
               {formatPrice(listing.price_chf)} · {listing.rooms ?? "?"} rooms
             </p>
-            <p className="listing-reason">{result.reason}</p>
+            <p className="listing-reason-label">{result.reason}</p>
+            <p className="listing-explanation">{result.explanation || result.reason}</p>
             {!!features.length && (
               <div className="feature-row">
                 {features.map((feature) => (

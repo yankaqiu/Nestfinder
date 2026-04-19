@@ -20,6 +20,7 @@ type RankedListingResult = {
   listing_id: string;
   score: number;
   reason: string;
+  explanation?: string | null;
   listing: ListingData;
 };
 
