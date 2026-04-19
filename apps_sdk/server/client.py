@@ -17,16 +17,13 @@ class ListingsApiClient:
         query: str,
         limit: int = 25,
         offset: int = 0,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
+        body: dict[str, Any] = {"query": query, "limit": limit, "offset": offset}
+        if user_id:
+            body["user_id"] = user_id
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30.0) as client:
-            response = await client.post(
-                "/listings",
-                json={
-                    "query": query,
-                    "limit": limit,
-                    "offset": offset,
-                },
-            )
+            response = await client.post("/listings", json=body)
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, dict) or not isinstance(payload.get("listings"), list):

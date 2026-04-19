@@ -8,17 +8,22 @@ from app.participant.image_rag_client import search_image_rag
 
 IMAGE_SIMILARITY_WEIGHT = 0.5
 SOFT_PREFERENCE_WEIGHT = 0.5
+PERSONALIZATION_MAX_WEIGHT = 0.20  # personalization influences at most 20% of score
 
 
 def rank_listings(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
+    user_profile: dict[str, Any] | None = None,
 ) -> list[RankedListingResult]:
-    image_ranked = _rank_with_image_rag(candidates, soft_facts)
-    if image_ranked is not None:
-        return image_ranked
+    # Hard-exclude dismissed listings
+    hidden_ids: set[str] = set()
+    if user_profile:
+        hidden_ids = {str(i) for i in user_profile.get("dismissed_listing_ids", [])}
+    candidates = [c for c in candidates if str(c.get("listing_id", "")) not in hidden_ids]
 
-    return [
+    image_ranked = _rank_with_image_rag(candidates, soft_facts)
+    base_results = image_ranked if image_ranked is not None else [
         RankedListingResult(
             listing_id=str(candidate["listing_id"]),
             score=_candidate_soft_score(candidate),
@@ -27,6 +32,80 @@ def rank_listings(
         )
         for candidate in candidates
     ]
+
+    if not user_profile:
+        return base_results
+
+    return _apply_personalization(base_results, user_profile)
+
+
+def _personalization_confidence(profile: dict[str, Any]) -> float:
+    total = profile.get("total_events", 0)
+    if total < 3:
+        return 0.0
+    if total < 10:
+        return 0.3
+    if total < 30:
+        return 0.6
+    return 1.0
+
+
+def _apply_personalization(
+    results: list[RankedListingResult],
+    profile: dict[str, Any],
+) -> list[RankedListingResult]:
+    confidence = _personalization_confidence(profile)
+    if confidence == 0.0:
+        return results
+
+    personal_weight = PERSONALIZATION_MAX_WEIGHT * confidence
+    favorited = set(str(i) for i in profile.get("favorite_listing_ids", []))
+    preferred_cities: dict[str, float] = profile.get("preferred_cities", {})
+    feature_affinities: dict[str, float] = profile.get("feature_affinities", {})
+    price_range: dict[str, float] | None = profile.get("price_range")
+
+    max_base = max((r.score for r in results), default=1.0) or 1.0
+
+    rescored: list[tuple[float, RankedListingResult]] = []
+    for result in results:
+        base = result.score / max_base  # normalise to [0,1]
+        personal = 0.0
+        personal_reasons: list[str] = []
+
+        if result.listing_id in favorited:
+            personal += 0.5
+            personal_reasons.append("you favorited this listing")
+
+        city = result.listing.city or ""
+        city_affinity = preferred_cities.get(city, 0.0)
+        if city_affinity > 0.3:
+            personal += city_affinity * 0.4
+            personal_reasons.append(f"matches your preferred area ({city})")
+
+        features = result.listing.features or []
+        affinity_hits = sum(feature_affinities.get(f, 0.0) for f in features if feature_affinities.get(f, 0.0) > 0.3)
+        if affinity_hits > 0:
+            personal += min(0.3, affinity_hits * 0.1)
+            personal_reasons.append("matches your feature preferences")
+
+        if price_range and result.listing.price_chf:
+            median = (price_range["min"] + price_range["max"]) / 2
+            distance = abs(result.listing.price_chf - median) / max(median, 1)
+            if distance < 0.1:
+                personal += 0.3
+                personal_reasons.append("within your typical price range")
+            elif distance < 0.25:
+                personal += 0.1
+
+        personal = min(1.0, personal)
+        final = (1 - personal_weight) * base + personal_weight * personal
+        reason = result.reason
+        if personal_reasons:
+            reason = f"{result.reason} · Personalised: {', '.join(personal_reasons)}."
+        rescored.append((final, result.model_copy(update={"score": round(final, 4), "reason": reason})))
+
+    rescored.sort(key=lambda x: x[0], reverse=True)
+    return [r for _, r in rescored]
 
 
 def _rank_with_image_rag(

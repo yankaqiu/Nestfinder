@@ -42,5 +42,6 @@ class RuleBasedImageRagStrategy(RecommendationStrategy):
         self,
         candidates: list[dict[str, Any]],
         soft_facts: SoftFacts,
+        user_profile: dict[str, Any] | None = None,
     ) -> list[RankedListingResult]:
-        return rank_rule_based_listings(candidates, soft_facts)
+        return rank_rule_based_listings(candidates, soft_facts, user_profile=user_profile)

@@ -26,6 +26,7 @@ class RecommendationStrategy(ABC):
         query: str,
         limit: int,
         offset: int,
+        user_id: str | None = None,
     ) -> ListingsResponse:
         raw_hard, soft_facts = asyncio.run(self._extract_parallel(query))
         hard_facts = self.prepare_hard_facts(raw_hard, limit=limit, offset=offset)
@@ -35,6 +36,7 @@ class RecommendationStrategy(ABC):
             soft_facts=soft_facts,
             response_limit=limit,
             response_offset=offset,
+            user_id=user_id,
         )
 
     def query_from_filters(
@@ -93,7 +95,16 @@ class RecommendationStrategy(ABC):
         soft_facts: SoftFacts,
         response_limit: int,
         response_offset: int,
+        user_id: str | None = None,
     ) -> ListingsResponse:
+        from apps_sdk.server.preferences import build_user_profile
+        user_profile: dict[str, Any] | None = None
+        if user_id:
+            try:
+                user_profile = build_user_profile(user_id=user_id)
+            except Exception:
+                pass
+
         candidates = filter_hard_facts(db_path, hard_facts)
         candidates = self.filter_soft_facts(
             candidates,
@@ -101,7 +112,7 @@ class RecommendationStrategy(ABC):
             limit=response_limit,
             offset=response_offset,
         )
-        ranked = self.rank_listings(candidates, soft_facts)
+        ranked = self.rank_listings(candidates, soft_facts, user_profile=user_profile)
         return ListingsResponse(
             listings=ranked[response_offset : response_offset + response_limit],
             meta=self.response_meta(),
@@ -137,5 +148,6 @@ class RecommendationStrategy(ABC):
         self,
         candidates: list[dict[str, Any]],
         soft_facts: SoftFacts,
+        user_profile: dict[str, Any] | None = None,
     ) -> list[RankedListingResult]:
         raise NotImplementedError

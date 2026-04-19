@@ -37,17 +37,27 @@ declare global {
   }
 }
 
-function generateSessionId(): string {
-  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+function getOrCreateUserId(): string {
+  const key = "nestfinder_user_id";
+  try {
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
 }
 
-function trackClick(listingId: string, sessionId: string, query?: string): void {
+function trackClick(listingId: string, userId: string, query?: string): void {
   const base = window.__NESTFINDER_API_BASE__;
   if (!base) return;
   fetch(`${base}/preferences`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ listing_id: listingId, action: "click", session_id: sessionId, query }),
+    body: JSON.stringify({ listing_id: listingId, action: "click", user_id: userId, query }),
   }).catch(() => undefined);
 }
 
@@ -82,7 +92,7 @@ function readToolOutputFromMessage(message: unknown): ToolOutput | null {
 export default function App() {
   const [toolOutput, setToolOutput] = useState<ToolOutput>(() => readToolOutput());
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const sessionIdRef = useRef<string>(generateSessionId());
+  const sessionIdRef = useRef<string>(getOrCreateUserId());
   const lastQueryRef = useRef<string | undefined>(undefined);
 
   const lastClickRef = useRef<{ id: string; ts: number } | null>(null);

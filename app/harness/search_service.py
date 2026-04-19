@@ -13,6 +13,7 @@ def query_from_text(
     limit: int,
     offset: int,
     strategy_id: str | None = None,
+    user_id: str | None = None,
 ) -> ListingsResponse:
     return get_recommendation_router().query_from_text(
         db_path=db_path,
@@ -20,6 +21,7 @@ def query_from_text(
         limit=limit,
         offset=offset,
         strategy_id=strategy_id,
+        user_id=user_id,
     )
 
 

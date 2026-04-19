@@ -37,11 +37,26 @@ def _listings_db_path() -> Path:
     return Path(__file__).resolve().parents[2] / "data" / "listings.db"
 
 
+_FEATURE_COLS = [
+    "feature_balcony", "feature_elevator", "feature_parking", "feature_garage",
+    "feature_fireplace", "feature_child_friendly", "feature_pets_allowed",
+    "feature_new_build", "feature_wheelchair_accessible", "feature_minergie_certified",
+]
+
+_EVENT_STRENGTH: dict[str, float] = {
+    "favorite": 3.0,
+    "click":    1.0,
+    "view":     1.0,
+    "dismiss": -3.0,
+}
+
+
 def _ensure_schema() -> None:
     with _conn() as con:
         con.execute("""
             CREATE TABLE IF NOT EXISTS user_events (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT,
                 session_id  TEXT,
                 listing_id  TEXT    NOT NULL,
                 action      TEXT    NOT NULL,
@@ -49,6 +64,12 @@ def _ensure_schema() -> None:
                 ts          TEXT    NOT NULL
             )
         """)
+        # Add user_id column if upgrading from old schema (no-op if already exists)
+        try:
+            con.execute("ALTER TABLE user_events ADD COLUMN user_id TEXT")
+        except Exception:
+            pass
+        con.execute("CREATE INDEX IF NOT EXISTS idx_user ON user_events(user_id)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_session ON user_events(session_id)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_listing ON user_events(listing_id)")
         con.execute("""
@@ -75,14 +96,15 @@ def record_event(
     action: str,
     query: str | None = None,
     session_id: str | None = None,
+    user_id: str | None = None,
 ) -> int:
     if action not in VALID_ACTIONS:
         raise ValueError(f"action must be one of {VALID_ACTIONS}")
     ts = datetime.now(timezone.utc).isoformat()
     with _conn() as con:
         cur = con.execute(
-            "INSERT INTO user_events (session_id, listing_id, action, query, ts) VALUES (?,?,?,?,?)",
-            (session_id, listing_id, action, query, ts),
+            "INSERT INTO user_events (user_id, session_id, listing_id, action, query, ts) VALUES (?,?,?,?,?,?)",
+            (user_id, session_id, listing_id, action, query, ts),
         )
         return cur.lastrowid or 0
 
@@ -137,64 +159,139 @@ def get_search_history(*, session_id: str | None = None, limit: int = 20) -> lis
     return [dict(r) for r in rows]
 
 
-def build_user_profile(*, session_id: str | None = None) -> dict[str, Any]:
-    """Aggregate click/favorite events into a structured preference profile."""
-    positive_events = get_events(session_id=session_id, action="click", limit=200)
-    positive_events += get_events(session_id=session_id, action="favorite", limit=200)
-    dismissed = {
-        e["listing_id"]
-        for e in get_events(session_id=session_id, action="dismiss", limit=200)
-    }
+def build_user_profile(
+    *,
+    user_id: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    """Aggregate events into a recency-weighted preference profile."""
+    now_iso = datetime.now(timezone.utc).isoformat()
 
-    clicked_ids = list({e["listing_id"] for e in positive_events} - dismissed)
-    favorite_ids = list(
-        {e["listing_id"] for e in positive_events if e["action"] == "favorite"} - dismissed
-    )
+    with _conn() as con:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if user_id:
+            clauses.append("user_id = ?")
+            params.append(user_id)
+        elif session_id:
+            clauses.append("session_id = ?")
+            params.append(session_id)
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = con.execute(
+            f"""SELECT listing_id, action, ts,
+                CASE
+                    WHEN ts > datetime(?, '-1 day')  THEN 3.0
+                    WHEN ts > datetime(?, '-7 days') THEN 2.0
+                    ELSE 1.0
+                END as recency_weight
+            FROM user_events {where}
+            ORDER BY ts DESC LIMIT 500""",
+            [now_iso, now_iso] + params,
+        ).fetchall()
 
-    cities: Counter[str] = Counter()
-    prices: list[int] = []
-    features: Counter[str] = Counter()
-    FEATURE_COLS = [
-        "feature_balcony", "feature_elevator", "feature_parking", "feature_garage",
-        "feature_fireplace", "feature_child_friendly", "feature_pets_allowed",
-        "feature_new_build", "feature_wheelchair_accessible", "feature_minergie_certified",
-        "feature_private_laundry",
-    ]
+    events = [dict(r) for r in rows]
+    total_events = len(events)
 
-    if clicked_ids:
+    clicked_ids: list[str] = []
+    favorite_ids: list[str] = []
+    dismissed_ids: list[str] = []
+    interacted_ids: list[str] = []
+
+    for e in events:
+        lid = e["listing_id"]
+        if e["action"] == "favorite" and lid not in favorite_ids:
+            favorite_ids.append(lid)
+        if e["action"] == "dismiss" and lid not in dismissed_ids:
+            dismissed_ids.append(lid)
+        if e["action"] in ("click", "view", "favorite") and lid not in clicked_ids:
+            clicked_ids.append(lid)
+        if lid not in interacted_ids:
+            interacted_ids.append(lid)
+
+    dismissed_set = set(dismissed_ids)
+    clicked_ids = [i for i in clicked_ids if i not in dismissed_set]
+    favorite_ids = [i for i in favorite_ids if i not in dismissed_set]
+
+    city_scores: dict[str, float] = {}
+    feature_scores: dict[str, float] = {}
+    prices: list[float] = []
+    rooms_list: list[float] = []
+
+    if interacted_ids:
         listings_db = _listings_db_path()
         if listings_db.exists():
-            placeholders = ",".join("?" for _ in clicked_ids)
-            cols = ", ".join(["city", "price"] + FEATURE_COLS)
-            con = sqlite3.connect(str(listings_db))
-            con.row_factory = sqlite3.Row
+            strength_by_id: dict[str, float] = {}
+            for e in events:
+                lid = e["listing_id"]
+                s = _EVENT_STRENGTH.get(e["action"], 1.0) * float(e["recency_weight"])
+                strength_by_id[lid] = strength_by_id.get(lid, 0.0) + s
+
+            placeholders = ",".join("?" for _ in interacted_ids)
+            cols = ", ".join(["listing_id", "city", "price", "rooms"] + _FEATURE_COLS)
+            lcon = sqlite3.connect(str(listings_db))
+            lcon.row_factory = sqlite3.Row
             try:
-                rows = con.execute(
+                lrows = lcon.execute(
                     f"SELECT {cols} FROM listings WHERE listing_id IN ({placeholders})",
-                    clicked_ids,
+                    interacted_ids,
                 ).fetchall()
             finally:
-                con.close()
+                lcon.close()
 
-            for row in rows:
+            for row in lrows:
+                lid = str(row["listing_id"])
+                strength = strength_by_id.get(lid, 1.0)
+                if strength <= 0:
+                    continue
                 if row["city"]:
-                    cities[row["city"]] += 1
-                if row["price"]:
-                    prices.append(int(row["price"]))
-                for col in FEATURE_COLS:
+                    city_scores[row["city"]] = city_scores.get(row["city"], 0.0) + strength
+                if row["price"] and strength > 0:
+                    prices.append(float(row["price"]))
+                if row["rooms"] and strength > 0:
+                    rooms_list.append(float(row["rooms"]))
+                for col in _FEATURE_COLS:
                     if row[col]:
-                        features[col.replace("feature_", "")] += 1
+                        key = col.replace("feature_", "")
+                        feature_scores[key] = feature_scores.get(key, 0.0) + strength
+
+    total_city = sum(abs(v) for v in city_scores.values()) or 1.0
+    preferred_cities = {k: round(v / total_city, 3) for k, v in city_scores.items() if v > 0}
+
+    price_range: dict[str, float] | None = None
+    if prices:
+        sorted_prices = sorted(prices)
+        price_range = {
+            "min": round(min(prices) * 0.9),
+            "max": round(max(prices) * 1.1),
+            "median": round(sorted_prices[len(sorted_prices) // 2]),
+        }
 
     search_history = get_search_history(session_id=session_id, limit=10)
 
+    confidence = 0.0
+    if total_events >= 30:
+        confidence = 1.0
+    elif total_events >= 10:
+        confidence = 0.6
+    elif total_events >= 3:
+        confidence = 0.3
+
     return {
+        "user_id": user_id,
         "session_id": session_id,
-        "clicked_listing_ids": clicked_ids,
+        "total_events": total_events,
+        "confidence": confidence,
+        "clicked_listing_ids": clicked_ids[:50],
         "favorite_listing_ids": favorite_ids,
-        "dismissed_listing_ids": list(dismissed),
-        "preferred_cities": [city for city, _ in cities.most_common(5)],
-        "preferred_features": [f for f, _ in features.most_common(5)],
-        "price_range": {"min": min(prices), "max": max(prices)} if prices else None,
+        "dismissed_listing_ids": dismissed_ids,
+        "preferred_cities": preferred_cities,
+        "feature_affinities": {k: round(v, 3) for k, v in feature_scores.items() if v > 0},
+        "preferred_features": sorted(feature_scores, key=lambda k: feature_scores[k], reverse=True)[:5],
+        "price_range": price_range,
+        "preferred_rooms": {
+            "min": min(rooms_list) if rooms_list else None,
+            "max": max(rooms_list) if rooms_list else None,
+        },
         "recent_searches": [s["query"] for s in search_history],
     }
 

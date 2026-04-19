@@ -29,6 +29,7 @@ class ListingsQueryRequest(BaseModel):
     query: str = Field(min_length=1)
     limit: int = Field(default=25, ge=1, le=500)
     offset: int = Field(default=0, ge=0)
+    user_id: str | None = Field(default=None)
 
 
 class ListingsSearchRequest(BaseModel):

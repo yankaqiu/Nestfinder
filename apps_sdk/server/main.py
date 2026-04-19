@@ -48,6 +48,7 @@ class SearchListingsInput(BaseModel):
     query: str = Field(..., description="Natural-language property search query.")
     limit: int = Field(default=25, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+    user_id: str | None = Field(default=None, description="Persistent user ID for personalised ranking.")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -314,6 +315,7 @@ async def _handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
             query=search_input.query,
             limit=search_input.limit,
             offset=search_input.offset,
+            user_id=search_input.user_id,
         )
         result_count = len(response_payload.get("listings", []))
         log_search(query=search_input.query, result_count=result_count)
@@ -440,6 +442,7 @@ async def _preferences_http(request: StarletteRequest) -> JSONResponse:
     action = body.get("action", "click")
     query = body.get("query")
     session_id = body.get("session_id")
+    user_id = body.get("user_id")
 
     if not listing_id:
         return JSONResponse({"error": "listing_id required"}, status_code=400, headers=cors_headers)
@@ -450,6 +453,7 @@ async def _preferences_http(request: StarletteRequest) -> JSONResponse:
             action=action,
             query=query,
             session_id=session_id,
+            user_id=user_id,
         )
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400, headers=cors_headers)
