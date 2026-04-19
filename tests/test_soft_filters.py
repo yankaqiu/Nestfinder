@@ -50,6 +50,8 @@ def test_rank_listings_returns_ranked_shape() -> None:
     assert ranked[0].listing_id == "abc"
     assert isinstance(ranked[0].score, float)
     assert isinstance(ranked[0].reason, str)
+    assert isinstance(ranked[0].explanation, str)
+    assert ranked[0].global_scores is not None
     assert ranked[0].listing.id == "abc"
     assert ranked[0].listing.title == "Example"
     assert ranked[0].listing.city == "Zurich"
@@ -185,3 +187,46 @@ def test_rank_listings_applies_subtle_user_preference_bonus(monkeypatch) -> None
     assert [item.listing_id for item in ranked] == ["preferred", "neutral"]
     assert ranked[0].score > ranked[1].score
     assert "user preference" in ranked[0].reason
+
+
+def test_rank_listings_uses_global_score_as_quality_boost(monkeypatch) -> None:
+    monkeypatch.setattr("app.participant.ranking.search_image_rag", lambda **kwargs: None)
+
+    ranked = rank_listings(
+        candidates=[
+            {
+                "listing_id": "quality",
+                "title": "Renovated apartment near the lake",
+                "city": "Zurich",
+                "price": 2500,
+                "price_vs_city_median": 0.8,
+                "features": ["balcony", "elevator", "parking"],
+                "is_urban": 1,
+                "lake_distance_m": 800,
+                "distance_public_transport": 150,
+                "renovation_year": 2022,
+                "floor_level": 4,
+                "description": "Bright renovated apartment.",
+                "latitude": 47.37,
+                "area": 82,
+                "rooms": 3.5,
+                "available_from": "2026-05-01",
+                "images_json": {"images": [{"url": "https://example.com/1.jpg"}, {"url": "https://example.com/2.jpg"}]},
+            },
+            {
+                "listing_id": "plain",
+                "title": "Apartment",
+                "city": "Zurich",
+                "price": 2500,
+                "description": "Basic apartment.",
+                "features": [],
+            },
+        ],
+        soft_facts={"raw_query": "apartment", "signals": {}},
+    )
+
+    assert [item.listing_id for item in ranked] == ["quality", "plain"]
+    assert ranked[0].global_scores is not None
+    assert ranked[0].score > ranked[1].score
+    assert ranked[0].reason in {"overall quality boost", "hard filters only"}
+    assert ranked[0].explanation

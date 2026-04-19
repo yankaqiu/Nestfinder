@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from app.db import get_connection
+from app.enrichment.schema import add_enrichment_columns
 from app.harness.csv_import import create_indexes, create_schema, import_csvs
 from app.harness.sred_transform import ensure_sred_normalized_csv
 
@@ -22,6 +23,8 @@ def bootstrap_database(*, db_path: Path, raw_data_dir: Path) -> None:
                 db_path,
             )
             return
+        with get_connection(db_path) as connection:
+            add_enrichment_columns(connection)
         return
 
     csv_paths = _csv_paths(raw_data_dir)
@@ -30,6 +33,7 @@ def bootstrap_database(*, db_path: Path, raw_data_dir: Path) -> None:
         create_schema(connection)
         import_csvs(connection, csv_paths)
         create_indexes(connection)
+        add_enrichment_columns(connection)
 
 
 def _csv_paths(raw_data_dir: Path) -> list[Path]:
@@ -54,16 +58,6 @@ def _schema_matches(db_path: Path) -> bool:
         "feature_wheelchair_accessible",
         "feature_private_laundry",
         "feature_minergie_certified",
-        "floor_level",
-        "year_built",
-        "renovation_year",
-        "is_furnished",
-        "price_per_sqm",
-        "price_vs_city_median",
-        "municipality",
-        "lake_distance_m",
-        "is_urban",
-        "text_features_json",
     }
 
     with get_connection(db_path) as connection:

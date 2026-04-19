@@ -65,6 +65,13 @@ def step_neighborhood(conn: sqlite3.Connection) -> None:
     logger.info("Neighborhood complete: %s", stats)
 
 
+def step_global_score(conn: sqlite3.Connection) -> None:
+    """Compute the global listing quality score."""
+    from app.enrichment.global_score import enrich_global_score
+    stats = enrich_global_score(conn)
+    logger.info("Global score complete: %s", stats)
+
+
 def step_report(conn: sqlite3.Connection) -> None:
     """Print a coverage report of enrichment columns."""
     enrichment_cols = [
@@ -72,6 +79,8 @@ def step_report(conn: sqlite3.Connection) -> None:
         "price_per_sqm", "price_vs_city_median",
         "municipality", "bfs_number", "lake_distance_m", "is_urban",
         "text_features_json",
+        "global_score", "score_value", "score_amenity", "score_location",
+        "score_building", "score_completeness", "score_freshness",
     ]
     total = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
     print(f"\n{'='*60}")
@@ -103,6 +112,7 @@ STEPS = {
     "geospatial": step_geospatial,
     "text_extract": step_text_extract,
     "neighborhood": step_neighborhood,
+    "global_score": step_global_score,
     "report": step_report,
 }
 
@@ -125,7 +135,7 @@ def main() -> int:
     conn = get_connection(args.db)
 
     if args.step == "all":
-        steps_to_run = ["schema", "backfill", "neighborhood", "report"]
+        steps_to_run = ["schema", "backfill", "neighborhood", "global_score", "report"]
     else:
         steps_to_run = [args.step]
 

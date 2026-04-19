@@ -6,6 +6,7 @@ import re
 from datetime import date, timedelta
 from typing import Any
 
+from app.enrichment.global_score import compute_global_score, explain_score
 from app.models.schemas import ListingData, RankedListingResult
 from app.participant.image_rag_client import search_image_rag
 
@@ -18,6 +19,7 @@ USER_PREFERENCE_CITY_BONUS = 0.08
 USER_PREFERENCE_PRICE_BONUS = 0.05
 USER_PREFERENCE_FEATURE_BONUS = 0.04
 MAX_USER_PREFERENCE_FEATURE_BONUS = 0.12
+GLOBAL_SCORE_WEIGHT = 0.3
 
 VISUAL_SIGNALS = {
     "bright",
@@ -67,6 +69,8 @@ class CandidateRankBreakdown:
     candidate: dict[str, Any]
     matched: list[str]
     soft_score: float
+    global_scores: dict[str, float]
+    global_score_bonus: float
     preference_bonus: float
     preference_reasons: list[str]
     image_score: float
@@ -74,6 +78,7 @@ class CandidateRankBreakdown:
     final_score: float
     best_image_url: str | None
     image_bonus_cap: float
+    explanation: str
 
 # ---------------------------------------------------------------------------
 # Signal matchers: each maps a soft signal name to a function that checks
@@ -377,6 +382,26 @@ def _area_gte(c: dict, min_sqm: float) -> bool:
 # Scoring
 # ---------------------------------------------------------------------------
 
+
+def _get_global_scores(candidate: dict[str, Any]) -> dict[str, float]:
+    precomputed = candidate.get("global_score")
+    if precomputed is not None:
+        return {
+            "global_score": float(precomputed),
+            "score_value": float(candidate.get("score_value") or 0.0),
+            "score_amenity": float(candidate.get("score_amenity") or 0.0),
+            "score_location": float(candidate.get("score_location") or 0.0),
+            "score_building": float(candidate.get("score_building") or 0.0),
+            "score_completeness": float(candidate.get("score_completeness") or 0.0),
+            "score_freshness": float(candidate.get("score_freshness") or 0.0),
+        }
+    return compute_global_score(candidate)
+
+
+def _global_score_bonus(global_scores: dict[str, float]) -> float:
+    return global_scores.get("global_score", 0.0) * GLOBAL_SCORE_WEIGHT
+
+
 def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str]]:
     """Score a candidate against extracted soft signals. Returns (score, matched_signals)."""
     signals = soft_facts.get("signals", {})
@@ -415,10 +440,12 @@ def rank_listings(
             listing_id=str(breakdown.candidate["listing_id"]),
             score=round(breakdown.final_score, 4),
             reason=_reason_for_breakdown(breakdown),
+            explanation=breakdown.explanation,
             listing=_to_listing_data(
                 breakdown.candidate,
                 hero_image_url_override=breakdown.best_image_url,
             ),
+            global_scores=breakdown.global_scores,
         )
         for breakdown in breakdowns
     ]
@@ -439,9 +466,11 @@ def _build_rank_breakdowns(
     max_image_score = max((score for score, _ in scores_by_listing.values()), default=0.0)
     image_bonus_cap = _image_bonus_cap(soft_facts)
 
-    ranked_candidates: list[tuple[float, float, float, int, CandidateRankBreakdown]] = []
+    ranked_candidates: list[tuple[float, float, float, float, int, CandidateRankBreakdown]] = []
     for index, (soft_score, matched, candidate) in enumerate(scored_candidates):
         listing_id = str(candidate["listing_id"])
+        global_scores = _get_global_scores(candidate)
+        global_score_bonus = _global_score_bonus(global_scores)
         preference_bonus, preference_reasons = _user_preference_bonus(candidate, user_profile)
         image_score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
         image_bonus = _image_bonus(
@@ -453,16 +482,32 @@ def _build_rank_breakdowns(
             candidate=candidate,
             matched=matched,
             soft_score=soft_score,
+            global_scores=global_scores,
+            global_score_bonus=global_score_bonus,
             preference_bonus=preference_bonus,
             preference_reasons=preference_reasons,
             image_score=image_score,
             image_bonus=image_bonus,
-            final_score=soft_score + preference_bonus + image_bonus,
+            final_score=soft_score + global_score_bonus + preference_bonus + image_bonus,
             best_image_url=best_image_url,
             image_bonus_cap=image_bonus_cap,
+            explanation=_build_explanation(
+                candidate=candidate,
+                global_scores=global_scores,
+                matched=matched,
+                preference_reasons=preference_reasons,
+                image_score=image_score,
+            ),
         )
         ranked_candidates.append(
-            (breakdown.final_score, image_score, soft_score + preference_bonus, index, breakdown)
+            (
+                breakdown.final_score,
+                image_score,
+                soft_score + preference_bonus,
+                global_scores.get("global_score", 0.0),
+                index,
+                breakdown,
+            )
         )
 
     ranked_candidates.sort(
@@ -470,11 +515,12 @@ def _build_rank_breakdowns(
             -item[0],
             -item[1],
             -item[2],
-            item[3],
+            -item[3],
+            item[4],
         )
     )
 
-    return [breakdown for _, _, _, _, breakdown in ranked_candidates]
+    return [breakdown for _, _, _, _, _, breakdown in ranked_candidates]
 
 
 def _score_candidates(
@@ -536,41 +582,70 @@ def _fallback_reason(matched: list[str]) -> str:
     return ", ".join(matched) if matched else "hard filters only"
 
 
+def _has_quality_reason(global_scores: dict[str, float]) -> bool:
+    return global_scores.get("global_score", 0.0) >= 0.6
+
+
+def _build_explanation(
+    *,
+    candidate: dict[str, Any],
+    global_scores: dict[str, float],
+    matched: list[str],
+    preference_reasons: list[str],
+    image_score: float,
+) -> str:
+    parts: list[str] = []
+    if matched:
+        parts.append(f"Matches your query on {', '.join(matched)}.")
+    if preference_reasons:
+        parts.append(f"Also aligned with your past preferences: {', '.join(preference_reasons)}.")
+    if image_score > 0:
+        parts.append("Listing photos also matched the visual style of your query.")
+    parts.append(explain_score(global_scores, candidate))
+    return " ".join(part.strip() for part in parts if part).strip()
+
+
 def _image_rank_reason(
     matched: list[str],
     *,
     image_score: float,
     soft_score: float,
+    has_quality_boost: bool,
     preference_bonus: float,
     preference_reasons: list[str],
 ) -> str:
     soft_reason = ", ".join(matched)
     preference_reason = ", ".join(preference_reasons)
+    quality_suffix = " + quality boost" if has_quality_boost else ""
+
     if image_score > 0 and soft_score > 0 and preference_bonus > 0 and soft_reason and preference_reason:
-        return f"soft match + user preference + image bonus: {soft_reason}; {preference_reason}"
+        return f"soft match{quality_suffix} + user preference + image bonus: {soft_reason}; {preference_reason}"
     if image_score > 0 and soft_score > 0 and soft_reason:
-        return f"soft match + image bonus: {soft_reason}"
+        return f"soft match{quality_suffix} + image bonus: {soft_reason}"
     if preference_bonus > 0 and soft_score > 0 and soft_reason and preference_reason:
-        return f"soft match + user preference: {soft_reason}; {preference_reason}"
+        return f"soft match{quality_suffix} + user preference: {soft_reason}; {preference_reason}"
     if image_score > 0 and soft_score > 0:
-        return "soft match + image bonus"
+        return f"soft match{quality_suffix} + image bonus"
     if preference_bonus > 0 and soft_score > 0:
-        return "soft match + user preference"
+        return f"soft match{quality_suffix} + user preference"
     if image_score > 0 and preference_bonus > 0 and preference_reason:
-        return f"image bonus + user preference: {preference_reason}"
+        return f"image bonus{quality_suffix} + user preference: {preference_reason}"
     if image_score > 0:
-        return "image bonus"
+        return f"image bonus{quality_suffix}"
     if preference_bonus > 0 and preference_reason:
-        return f"user preference boost: {preference_reason}"
+        return f"user preference boost{quality_suffix}: {preference_reason}"
+    if has_quality_boost:
+        return "overall quality boost"
     return _fallback_reason(matched)
 
 
 def _reason_for_breakdown(breakdown: CandidateRankBreakdown) -> str:
-    if breakdown.image_bonus > 0 or breakdown.preference_bonus > 0:
+    if breakdown.image_bonus > 0 or breakdown.preference_bonus > 0 or _has_quality_reason(breakdown.global_scores):
         return _image_rank_reason(
             breakdown.matched,
             image_score=breakdown.image_score,
             soft_score=breakdown.soft_score,
+            has_quality_boost=_has_quality_reason(breakdown.global_scores),
             preference_bonus=breakdown.preference_bonus,
             preference_reasons=breakdown.preference_reasons,
         )

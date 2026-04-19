@@ -197,6 +197,11 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
         entry["rank"] = rank
         entry["score"] = round(rank_breakdown.final_score, 3)
         entry["soft_score"] = round(rank_breakdown.soft_score, 3)
+        entry["global_score_bonus"] = round(rank_breakdown.global_score_bonus, 3)
+        entry["global_scores"] = {
+            key: round(value, 3) for key, value in rank_breakdown.global_scores.items()
+        }
+        entry["explanation"] = rank_breakdown.explanation
         entry["image_score"] = round(rank_breakdown.image_score, 3)
         entry["image_bonus"] = round(rank_breakdown.image_bonus, 3)
         entry["image_bonus_cap"] = round(rank_breakdown.image_bonus_cap, 3)
@@ -265,6 +270,11 @@ def trace_preferences(req: PreferenceTraceRequest) -> dict[str, Any]:
         entry["rank"] = rank
         entry["final_score"] = round(rank_breakdown.final_score, 3)
         entry["soft_score"] = round(rank_breakdown.soft_score, 3)
+        entry["global_score_bonus"] = round(rank_breakdown.global_score_bonus, 3)
+        entry["global_scores"] = {
+            key: round(value, 3) for key, value in rank_breakdown.global_scores.items()
+        }
+        entry["explanation"] = rank_breakdown.explanation
         entry["preference_bonus"] = round(rank_breakdown.preference_bonus, 3)
         entry["preference_reasons"] = rank_breakdown.preference_reasons
         entry["image_bonus"] = round(rank_breakdown.image_bonus, 3)
@@ -558,16 +568,42 @@ function renderRank(s){
     entries.forEach(([b,c],i)=>{h+=`<div class="seg" style="flex:${c};background:${colors[i%colors.length]}" title="Score ${b}: ${c}">${b} (${c})</div>`;});
     h+='</div>';
   }
-  h+='<div style="max-height:700px;overflow:auto;margin-top:12px"><table class="results-table"><thead><tr><th>#</th><th>Final</th><th>Soft</th><th>Img+</th><th>City</th><th>Rooms</th><th>CHF</th><th>Area</th><th>Matched Signals</th><th>Title</th></tr></thead><tbody>';
+  h+='<div style="max-height:700px;overflow:auto;margin-top:12px"><table class="results-table"><thead><tr><th>#</th><th>Final</th><th>Soft</th><th>Q+</th><th>Img+</th><th>City</th><th>Rooms</th><th>CHF</th><th>Area</th><th>Matched Signals</th><th>Title</th></tr></thead><tbody>';
   for(const r of(s.top_results||[])){
     const sc=r.score, cls=sc>1?'score-high':sc>0?'score-mid':'score-zero', did='d-'+r.listing_id;
     let sh='';
     if(r.matched_signals&&r.matched_signals.length){const bd=r.signal_breakdown||{};sh=r.matched_signals.map(s=>`<span class="match-tag">${s}${bd[s]!=null?`<span class="mw">+${bd[s]}</span>`:''}</span>`).join('');}
     else sh='<span style="color:var(--muted);font-size:.75rem">—</span>';
     const enrich=enrichBlock(r);
-    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td class="score-cell">${(r.soft_score??0).toFixed(2)}</td><td class="score-cell">${(r.image_bonus??0).toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div><div class="meta-row" style="margin-top:6px">${`<div class="meta-item">Soft score: <span>${(r.soft_score??0).toFixed(3)}</span></div><div class="meta-item">Image score: <span>${(r.image_score??0).toFixed(3)}</span></div><div class="meta-item">Image bonus: <span>${(r.image_bonus??0).toFixed(3)}</span></div><div class="meta-item">Bonus cap: <span>${(r.image_bonus_cap??0).toFixed(3)}</span></div>`}${r.best_image_url?`<div class="meta-item">Best image: <a href="${r.best_image_url}" target="_blank" style="color:var(--accent)">open</a></div>`:''}</div>${renderPhotos(r)}${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
+    const explainHtml=r.explanation?`<div style="margin-top:8px;padding:8px 10px;background:rgba(80,200,120,.07);border:1px solid rgba(80,200,120,.2);border-radius:6px;font-size:.82rem;line-height:1.5;color:#c8e6c9"><span style="font-size:.68rem;color:rgba(80,200,120,.8);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:3px">Why this score</span>${esc(r.explanation)}</div>`:'';
+    const gsHtml=globalScoreBlock(r.global_scores);
+    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td class="score-cell">${(r.soft_score??0).toFixed(2)}</td><td class="score-cell">${(r.global_score_bonus??0).toFixed(2)}</td><td class="score-cell">${(r.image_bonus??0).toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}">${explainHtml}${gsHtml}<div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div><div class="meta-row" style="margin-top:6px">${`<div class="meta-item">Soft score: <span>${(r.soft_score??0).toFixed(3)}</span></div><div class="meta-item">Quality bonus: <span>${(r.global_score_bonus??0).toFixed(3)}</span></div><div class="meta-item">Image score: <span>${(r.image_score??0).toFixed(3)}</span></div><div class="meta-item">Image bonus: <span>${(r.image_bonus??0).toFixed(3)}</span></div><div class="meta-item">Bonus cap: <span>${(r.image_bonus_cap??0).toFixed(3)}</span></div>`}${r.best_image_url?`<div class="meta-item">Best image: <a href="${r.best_image_url}" target="_blank" style="color:var(--accent)">open</a></div>`:''}</div>${renderPhotos(r)}${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
   }
   h+='</tbody></table></div>';
+  return h;
+}
+function globalScoreBlock(gs){
+  if(!gs) return '';
+  const g=gs.global_score!=null?gs.global_score:0;
+  const dims=[
+    ['Value',gs.score_value,0.25,'#66bb6a'],
+    ['Amenity',gs.score_amenity,0.20,'#42a5f5'],
+    ['Location',gs.score_location,0.20,'#ab47bc'],
+    ['Building',gs.score_building,0.15,'#ffa726'],
+    ['Complete',gs.score_completeness,0.10,'#26c6da'],
+    ['Fresh',gs.score_freshness,0.10,'#ef5350'],
+  ];
+  let h=`<div style="margin-top:6px;padding:8px 10px;background:rgba(108,140,255,.06);border:1px solid rgba(108,140,255,.15);border-radius:6px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em">Global Score</span><span style="font-size:.95rem;font-weight:700;color:${g>=0.6?'var(--green)':g>=0.4?'var(--orange)':'var(--red)'}">${g.toFixed(3)}</span></div><div style="display:flex;gap:4px;height:10px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.05)">`;
+  for(const[name,val,weight,col]of dims){
+    const w=(val*weight/1)*100;
+    h+=`<div title="${name}: ${(val*100).toFixed(0)}% × ${(weight*100).toFixed(0)}%w" style="width:${w.toFixed(1)}%;background:${col};min-width:1px"></div>`;
+  }
+  h+=`</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">`;
+  for(const[name,val,weight,col]of dims){
+    const pct=(val*100).toFixed(0);
+    h+=`<span style="font-size:.7rem;color:var(--muted);white-space:nowrap"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-right:2px;vertical-align:middle"></span>${name} <span style="color:var(--text)">${pct}%</span><span style="opacity:.5">×${(weight*100).toFixed(0)}%</span></span>`;
+  }
+  h+=`</div></div>`;
   return h;
 }
 function renderPhotos(r){
