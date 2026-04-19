@@ -54,6 +54,16 @@ def _schema_matches(db_path: Path) -> bool:
         "feature_wheelchair_accessible",
         "feature_private_laundry",
         "feature_minergie_certified",
+        "floor_level",
+        "year_built",
+        "renovation_year",
+        "is_furnished",
+        "price_per_sqm",
+        "price_vs_city_median",
+        "municipality",
+        "lake_distance_m",
+        "is_urban",
+        "text_features_json",
     }
 
     with get_connection(db_path) as connection:

@@ -1,11 +1,71 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import re
 from datetime import date, timedelta
 from typing import Any
 
 from app.models.schemas import ListingData, RankedListingResult
+from app.participant.image_rag_client import search_image_rag
+
+MIN_IMAGE_BONUS_CAP = 0.15
+DEFAULT_IMAGE_BONUS_CAP = 0.25
+MAX_IMAGE_BONUS_CAP = 0.8
+
+VISUAL_SIGNALS = {
+    "bright",
+    "views",
+    "modern",
+    "near_lake",
+    "furnished",
+    "green_area",
+    "lively",
+    "well_maintained",
+    "outdoor_space",
+    "balcony",
+    "parking",
+    "fireplace",
+    "garden",
+    "modern_kitchen",
+    "modern_bathroom",
+    "new_build",
+}
+
+NON_VISUAL_SIGNALS = {
+    "quiet",
+    "public_transport",
+    "short_commute",
+    "family_friendly",
+    "child_friendly",
+    "good_schools",
+    "affordable",
+    "spacious",
+    "private_laundry",
+    "elevator",
+    "dishwasher",
+    "cellar",
+    "washing_machine",
+    "minergie",
+    "pets_allowed",
+    "student",
+    "near_eth",
+    "near_epfl",
+    "near_hb",
+    "specific_move_in",
+}
+
+
+@dataclass(slots=True)
+class CandidateRankBreakdown:
+    candidate: dict[str, Any]
+    matched: list[str]
+    soft_score: float
+    image_score: float
+    image_bonus: float
+    final_score: float
+    best_image_url: str | None
+    image_bonus_cap: float
 
 # ---------------------------------------------------------------------------
 # Signal matchers: each maps a soft signal name to a function that checks
@@ -340,32 +400,215 @@ def rank_listings(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
 ) -> list[RankedListingResult]:
+    breakdowns = _build_rank_breakdowns(candidates, soft_facts)
+    return [
+        RankedListingResult(
+            listing_id=str(breakdown.candidate["listing_id"]),
+            score=round(breakdown.final_score, 4),
+            reason=_reason_for_breakdown(breakdown),
+            listing=_to_listing_data(
+                breakdown.candidate,
+                hero_image_url_override=breakdown.best_image_url,
+            ),
+        )
+        for breakdown in breakdowns
+    ]
+
+
+def _build_rank_breakdowns(
+    candidates: list[dict[str, Any]],
+    soft_facts: dict[str, Any],
+) -> list[CandidateRankBreakdown]:
+    scored_candidates = _score_candidates(candidates, soft_facts)
+    query_text = str(soft_facts.get("raw_query") or "").strip()
+    listing_ids = [str(candidate["listing_id"]) for _, _, candidate in scored_candidates]
+    scores_by_listing = _image_scores_by_listing(
+        query_text=query_text,
+        listing_ids=listing_ids,
+    )
+    max_image_score = max((score for score, _ in scores_by_listing.values()), default=0.0)
+    image_bonus_cap = _image_bonus_cap(soft_facts)
+
+    ranked_candidates: list[tuple[float, float, float, int, CandidateRankBreakdown]] = []
+    for index, (soft_score, matched, candidate) in enumerate(scored_candidates):
+        listing_id = str(candidate["listing_id"])
+        image_score, best_image_url = scores_by_listing.get(listing_id, (0.0, None))
+        image_bonus = _image_bonus(
+            image_score=image_score,
+            max_image_score=max_image_score,
+            image_bonus_cap=image_bonus_cap,
+        )
+        breakdown = CandidateRankBreakdown(
+            candidate=candidate,
+            matched=matched,
+            soft_score=soft_score,
+            image_score=image_score,
+            image_bonus=image_bonus,
+            final_score=soft_score + image_bonus,
+            best_image_url=best_image_url,
+            image_bonus_cap=image_bonus_cap,
+        )
+        ranked_candidates.append(
+            (breakdown.final_score, image_score, soft_score, index, breakdown)
+        )
+
+    ranked_candidates.sort(
+        key=lambda item: (
+            -item[0],
+            -item[1],
+            -item[2],
+            item[3],
+        )
+    )
+
+    return [breakdown for _, _, _, _, breakdown in ranked_candidates]
+
+
+def _score_candidates(
+    candidates: list[dict[str, Any]],
+    soft_facts: dict[str, Any],
+) -> list[tuple[float, list[str], dict[str, Any]]]:
     signals = soft_facts.get("signals", {})
     has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm"))
 
     scored: list[tuple[float, list[str], dict[str, Any]]] = []
     for candidate in candidates:
         if has_soft:
-            s, m = _score_candidate(candidate, soft_facts)
-            scored.append((s, m, candidate))
+            soft_score, matched = _score_candidate(candidate, soft_facts)
+            scored.append((soft_score, matched, candidate))
         else:
             scored.append((0.0, [], candidate))
 
     if has_soft:
-        scored.sort(key=lambda x: -x[0])
+        scored.sort(key=lambda item: -item[0])
 
-    return [
-        RankedListingResult(
-            listing_id=str(cand["listing_id"]),
-            score=round(sc, 2),
-            reason=", ".join(matched) if matched else "hard filters only",
-            listing=_to_listing_data(cand),
+    return scored
+
+
+def _image_scores_by_listing(
+    *,
+    query_text: str,
+    listing_ids: list[str],
+) -> dict[str, tuple[float, str | None]]:
+    if not query_text or not listing_ids:
+        return {}
+
+    try:
+        payload = search_image_rag(
+            query_text=query_text,
+            listing_ids=listing_ids,
+            top_k=min(len(listing_ids), 500),
         )
-        for sc, matched, cand in scored
-    ]
+    except Exception:
+        return {}
+
+    if not payload:
+        return {}
+
+    scores_by_listing: dict[str, tuple[float, str | None]] = {}
+    for item in payload.get("results", []):
+        if not isinstance(item, dict):
+            continue
+        listing_id = str(item.get("listing_id") or "")
+        if not listing_id:
+            continue
+        scores_by_listing[listing_id] = (
+            float(item.get("score", 0.0)),
+            item.get("best_image_url"),
+        )
+    return scores_by_listing
 
 
-def _to_listing_data(candidate: dict[str, Any]) -> ListingData:
+def _fallback_reason(matched: list[str]) -> str:
+    return ", ".join(matched) if matched else "hard filters only"
+
+
+def _image_rank_reason(
+    matched: list[str],
+    *,
+    image_score: float,
+    soft_score: float,
+) -> str:
+    soft_reason = ", ".join(matched)
+    if image_score > 0 and soft_score > 0 and soft_reason:
+        return f"soft match + image bonus: {soft_reason}"
+    if image_score > 0 and soft_score > 0:
+        return "soft match + image bonus"
+    if image_score > 0:
+        return "image bonus"
+    return _fallback_reason(matched)
+
+
+def _reason_for_breakdown(breakdown: CandidateRankBreakdown) -> str:
+    if breakdown.image_bonus > 0:
+        return _image_rank_reason(
+            breakdown.matched,
+            image_score=breakdown.image_score,
+            soft_score=breakdown.soft_score,
+        )
+    return _fallback_reason(breakdown.matched)
+
+
+def _image_bonus(
+    *,
+    image_score: float,
+    max_image_score: float,
+    image_bonus_cap: float,
+) -> float:
+    return image_bonus_cap * _normalize_non_negative_score(image_score, max_image_score)
+
+
+def _image_bonus_cap(soft_facts: dict[str, Any]) -> float:
+    signals = soft_facts.get("signals", {})
+    if not isinstance(signals, dict) or not signals:
+        return DEFAULT_IMAGE_BONUS_CAP
+
+    visual_weight = 0.0
+    non_visual_weight = 0.0
+    for signal_name, weight in signals.items():
+        score = _coerce_non_negative_float(weight)
+        if signal_name in VISUAL_SIGNALS:
+            visual_weight += score
+        elif signal_name in NON_VISUAL_SIGNALS:
+            non_visual_weight += score
+
+    if soft_facts.get("preferred_min_area_sqm"):
+        non_visual_weight += 0.3
+    if soft_facts.get("max_commute_minutes"):
+        non_visual_weight += 0.5
+    if soft_facts.get("commute_destination"):
+        non_visual_weight += 0.3
+
+    total_weight = visual_weight + non_visual_weight
+    if total_weight <= 0:
+        return DEFAULT_IMAGE_BONUS_CAP
+
+    visual_ratio = visual_weight / total_weight
+    return MIN_IMAGE_BONUS_CAP + (MAX_IMAGE_BONUS_CAP - MIN_IMAGE_BONUS_CAP) * visual_ratio
+
+
+def _normalize_non_negative_score(score: float, max_score: float) -> float:
+    if max_score <= 0:
+        return 0.0
+    return max(score, 0.0) / max_score
+
+
+def _coerce_non_negative_float(value: Any) -> float:
+    try:
+        return max(float(value), 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _to_listing_data(
+    candidate: dict[str, Any],
+    hero_image_url_override: str | None = None,
+) -> ListingData:
+    image_urls = _coerce_image_urls(candidate.get("image_urls"))
+    hero_image_url = candidate.get("hero_image_url") or hero_image_url_override
+    if hero_image_url_override and not image_urls:
+        image_urls = [hero_image_url_override]
+
     return ListingData(
         id=str(candidate["listing_id"]),
         title=candidate["title"],
@@ -380,8 +623,8 @@ def _to_listing_data(candidate: dict[str, Any]) -> ListingData:
         rooms=candidate.get("rooms"),
         living_area_sqm=_coerce_int(candidate.get("area")),
         available_from=candidate.get("available_from"),
-        image_urls=_coerce_image_urls(candidate.get("image_urls")),
-        hero_image_url=candidate.get("hero_image_url"),
+        image_urls=image_urls,
+        hero_image_url=hero_image_url,
         original_listing_url=candidate.get("original_url"),
         features=candidate.get("features") or [],
         offer_type=candidate.get("offer_type"),

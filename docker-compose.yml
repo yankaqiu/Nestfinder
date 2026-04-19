@@ -7,6 +7,25 @@ services:
     environment:
       LISTINGS_RAW_DATA_DIR: /app/raw_data
       LISTINGS_DB_PATH: /data/listings.db
+      IMAGE_RAG_BASE_URL: http://image-rag:8002
+    volumes:
+      - listings_data:/data
+      - .:/app
+    depends_on:
+      - image-rag
+  image-rag:
+    build:
+      context: .
+    command: uvicorn services.image_rag.main:app --host 0.0.0.0 --port 8002
+    environment:
+      LISTINGS_RAW_DATA_DIR: /app/raw_data
+      LISTINGS_DB_PATH: /data/listings.db
+      IMAGE_RAG_DB_URI: /data/image-rag/milvus.db
+      IMAGE_RAG_STATE_DB: /data/image-rag/state.db
+      IMAGE_RAG_DEVICE: cpu
+      IMAGE_RAG_SYNC_ON_START: "true"
+    ports:
+      - "8002:8002"
     volumes:
       - listings_data:/data
       - .:/app

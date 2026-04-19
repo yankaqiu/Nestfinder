@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from starlette.staticfiles import StaticFiles
 import uvicorn
 
 from app.config import get_settings
@@ -25,7 +26,7 @@ from app.core.hard_filters import search_listings
 from app.db import get_connection
 from app.harness.search_service import to_hard_filter_params
 from app.participant.hard_fact_extraction import extract_hard_facts
-from app.participant.ranking import _score_candidate, _SIGNAL_MATCHERS
+from app.participant.ranking import _SIGNAL_MATCHERS, _build_rank_breakdowns, _image_bonus_cap
 from app.participant.soft_fact_extraction import extract_soft_facts
 from app.participant.soft_filtering import filter_soft_facts
 
@@ -33,6 +34,14 @@ settings = get_settings()
 DB_PATH = settings.db_path
 
 app = FastAPI(title="NestFinder Pipeline Debugger")
+
+_sred_images_dir = settings.raw_data_dir / "sred_images"
+if _sred_images_dir.exists():
+    app.mount(
+        "/raw-data-images",
+        StaticFiles(directory=str(_sred_images_dir)),
+        name="raw-data-images",
+    )
 
 
 class TraceRequest(BaseModel):
@@ -173,43 +182,43 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
     })
 
     t0 = time.perf_counter()
-    scored_results = []
-    for c in after_soft:
-        score, matched = _score_candidate(c, soft_facts)
-        scored_results.append((score, matched, c))
-
-    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm"))
-    if has_soft:
-        scored_results.sort(key=lambda x: -x[0])
-
-    top_n = scored_results[:req.top_n]
+    rank_breakdowns = _build_rank_breakdowns(after_soft, soft_facts)
+    top_n = rank_breakdowns[:req.top_n]
     ranked_output = []
-    for rank, (score, matched, c) in enumerate(top_n, 1):
-        entry = _candidate_summary(c)
+    for rank, rank_breakdown in enumerate(top_n, 1):
+        entry = _candidate_summary(rank_breakdown.candidate)
         entry["rank"] = rank
-        entry["score"] = round(score, 3)
-        entry["matched_signals"] = matched
-        breakdown = {}
-        for sig_name in matched:
+        entry["score"] = round(rank_breakdown.final_score, 3)
+        entry["soft_score"] = round(rank_breakdown.soft_score, 3)
+        entry["image_score"] = round(rank_breakdown.image_score, 3)
+        entry["image_bonus"] = round(rank_breakdown.image_bonus, 3)
+        entry["image_bonus_cap"] = round(rank_breakdown.image_bonus_cap, 3)
+        entry["matched_signals"] = rank_breakdown.matched
+        entry["best_image_url"] = rank_breakdown.best_image_url
+        signal_breakdown = {}
+        for sig_name in entry["matched_signals"]:
             if sig_name == "area_pref":
-                breakdown["area_pref"] = 0.3
+                signal_breakdown["area_pref"] = 0.3
             else:
-                breakdown[sig_name] = signals.get(sig_name, 0)
-        entry["signal_breakdown"] = breakdown
+                signal_breakdown[sig_name] = signals.get(sig_name, 0)
+        entry["signal_breakdown"] = signal_breakdown
         ranked_output.append(entry)
 
     score_distribution: dict[str, int] = {}
-    for sc, _, _ in scored_results:
-        bucket = str(round(sc, 1))
+    for rank_breakdown in rank_breakdowns:
+        bucket = str(round(rank_breakdown.final_score, 1))
         score_distribution[bucket] = score_distribution.get(bucket, 0) + 1
 
     result["stages"].append({
         "name": "Ranking",
         "status": "ok",
         "duration_ms": round((time.perf_counter() - t0) * 1000),
-        "total_scored": len(scored_results),
-        "max_score": round(scored_results[0][0], 3) if scored_results else 0,
-        "min_score": round(scored_results[-1][0], 3) if scored_results else 0,
+        "total_scored": len(rank_breakdowns),
+        "max_score": round(rank_breakdowns[0].final_score, 3) if rank_breakdowns else 0,
+        "min_score": round(rank_breakdowns[-1].final_score, 3) if rank_breakdowns else 0,
+        "image_bonus_cap": round(_image_bonus_cap(soft_facts), 3),
+        "boosted_count": sum(1 for item in rank_breakdowns if item.image_bonus > 0),
+        "max_image_bonus": round(max((item.image_bonus for item in rank_breakdowns), default=0.0), 3),
         "score_distribution": score_distribution,
         "top_results": ranked_output,
     })
@@ -316,6 +325,12 @@ _HTML = """\
   .listing-detail .meta-row { display:flex; gap:12px; flex-wrap:wrap; }
   .listing-detail .meta-item { color:var(--muted); }
   .listing-detail .meta-item span { color:var(--text); }
+  .photo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+  .photo-card { background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .photo-card img { display:block; width:100%; height:150px; object-fit:cover; background:#0b0d12; }
+  .photo-card .photo-meta { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:8px 10px; font-size:.72rem; color:var(--muted); }
+  .photo-card .photo-meta a { color:var(--accent); text-decoration:none; }
+  .photo-card .photo-meta a:hover { text-decoration:underline; }
 
   .removed-list { list-style:none; font-size:.8rem; margin:8px 0; }
   .removed-list li { padding:4px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
@@ -475,6 +490,7 @@ function renderSoftF(s){
 }
 function renderRank(s){
   let h='';
+  h+=`<div class="kv-grid"><div class="key">Image bonus cap</div><div class="val">${(s.image_bonus_cap??0).toFixed(3)}</div><div class="key">Listings boosted by image</div><div class="val">${s.boosted_count??0}</div><div class="key">Max image bonus</div><div class="val">${(s.max_image_bonus??0).toFixed(3)}</div></div>`;
   const dist=s.score_distribution||{};
   if(Object.keys(dist).length){
     const colors=['#6c8cff','#9f7aea','#22d3ee','#4ade80','#fbbf24','#f87171'];
@@ -483,17 +499,35 @@ function renderRank(s){
     entries.forEach(([b,c],i)=>{h+=`<div class="seg" style="flex:${c};background:${colors[i%colors.length]}" title="Score ${b}: ${c}">${b} (${c})</div>`;});
     h+='</div>';
   }
-  h+='<div style="max-height:700px;overflow:auto;margin-top:12px"><table class="results-table"><thead><tr><th>#</th><th>Score</th><th>City</th><th>Rooms</th><th>CHF</th><th>Area</th><th>Matched Signals</th><th>Title</th></tr></thead><tbody>';
+  h+='<div style="max-height:700px;overflow:auto;margin-top:12px"><table class="results-table"><thead><tr><th>#</th><th>Final</th><th>Soft</th><th>Img+</th><th>City</th><th>Rooms</th><th>CHF</th><th>Area</th><th>Matched Signals</th><th>Title</th></tr></thead><tbody>';
   for(const r of(s.top_results||[])){
     const sc=r.score, cls=sc>1?'score-high':sc>0?'score-mid':'score-zero', did='d-'+r.listing_id;
     let sh='';
     if(r.matched_signals&&r.matched_signals.length){const bd=r.signal_breakdown||{};sh=r.matched_signals.map(s=>`<span class="match-tag">${s}${bd[s]!=null?`<span class="mw">+${bd[s]}</span>`:''}</span>`).join('');}
     else sh='<span style="color:var(--muted);font-size:.75rem">—</span>';
     const enrich=enrichBlock(r);
-    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div>${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
+    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td class="score-cell">${(r.soft_score??0).toFixed(2)}</td><td class="score-cell">${(r.image_bonus??0).toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div><div class="meta-row" style="margin-top:6px">${`<div class="meta-item">Soft score: <span>${(r.soft_score??0).toFixed(3)}</span></div><div class="meta-item">Image score: <span>${(r.image_score??0).toFixed(3)}</span></div><div class="meta-item">Image bonus: <span>${(r.image_bonus??0).toFixed(3)}</span></div><div class="meta-item">Bonus cap: <span>${(r.image_bonus_cap??0).toFixed(3)}</span></div>`}${r.best_image_url?`<div class="meta-item">Best image: <a href="${r.best_image_url}" target="_blank" style="color:var(--accent)">open</a></div>`:''}</div>${renderPhotos(r)}${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
   }
   h+='</tbody></table></div>';
   return h;
+}
+function renderPhotos(r){
+  const cards=[];
+  if(r.hero_image_url){
+    const sameAsBest=r.best_image_url&&r.best_image_url===r.hero_image_url;
+    cards.push({
+      label:sameAsBest?'Listing / matched image':'Listing hero image',
+      url:r.hero_image_url,
+    });
+  }
+  if(r.best_image_url && r.best_image_url!==r.hero_image_url){
+    cards.push({
+      label:'Image RAG matched image',
+      url:r.best_image_url,
+    });
+  }
+  if(!cards.length) return '';
+  return `<div style="margin-top:10px"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Photos</div><div class="photo-grid">${cards.map(card=>`<div class="photo-card"><img src="${card.url}" alt="${esc(card.label)}" loading="lazy" referrerpolicy="no-referrer" /><div class="photo-meta"><span>${esc(card.label)}</span><a href="${card.url}" target="_blank">open</a></div></div>`).join('')}</div></div>`;
 }
 function enrichBlock(r){
   const items=[];

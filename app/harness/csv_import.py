@@ -50,6 +50,16 @@ def create_schema(connection: sqlite3.Connection) -> None:
             object_type TEXT,
             original_url TEXT,
             images_json TEXT,
+            floor_level REAL,
+            year_built INTEGER,
+            renovation_year INTEGER,
+            is_furnished INTEGER,
+            price_per_sqm REAL,
+            price_vs_city_median REAL,
+            municipality TEXT,
+            lake_distance_m REAL,
+            is_urban INTEGER,
+            text_features_json TEXT,
             location_address_json TEXT,
             orig_data_json TEXT,
             raw_json TEXT NOT NULL
@@ -106,10 +116,20 @@ def import_csvs(connection: sqlite3.Connection, csv_paths: Iterable[Path]) -> No
                     object_type,
                     original_url,
                     images_json,
+                    floor_level,
+                    year_built,
+                    renovation_year,
+                    is_furnished,
+                    price_per_sqm,
+                    price_vs_city_median,
+                    municipality,
+                    lake_distance_m,
+                    is_urban,
+                    text_features_json,
                     location_address_json,
                     orig_data_json,
                     raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )

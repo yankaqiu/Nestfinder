@@ -54,3 +54,95 @@ def test_rank_listings_returns_ranked_shape() -> None:
     assert ranked[0].listing.title == "Example"
     assert ranked[0].listing.city == "Zurich"
     assert ranked[0].listing.image_urls
+
+
+def test_rank_listings_uses_image_rag_when_available(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.participant.ranking.search_image_rag",
+        lambda **kwargs: {
+            "results": [
+                {
+                    "listing_id": "second",
+                    "score": 0.9,
+                    "best_image_url": "https://example.com/2.jpg",
+                },
+                {
+                    "listing_id": "first",
+                    "score": 0.2,
+                    "best_image_url": "https://example.com/1.jpg",
+                },
+            ]
+        },
+    )
+
+    ranked = rank_listings(
+        candidates=[
+            {
+                "listing_id": "first",
+                "title": "Bright apartment",
+                "description": "Sunny home",
+                "features": [],
+            },
+            {
+                "listing_id": "second",
+                "title": "Apartment with balcony",
+                "description": "Outdoor space",
+                "features": ["balcony"],
+            },
+        ],
+        soft_facts={
+            "raw_query": "bright apartment with balcony",
+            "signals": {"bright": 1.0, "balcony": 0.8},
+        },
+    )
+
+    assert [item.listing_id for item in ranked] == ["second", "first"]
+    assert ranked[0].reason.startswith("soft match + image bonus")
+    assert ranked[0].listing.hero_image_url == "https://example.com/2.jpg"
+
+
+def test_rank_listings_limits_image_bonus_for_non_visual_queries(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.participant.ranking.search_image_rag",
+        lambda **kwargs: {
+            "results": [
+                {
+                    "listing_id": "image-heavy",
+                    "score": 0.95,
+                    "best_image_url": "https://example.com/1.jpg",
+                },
+                {
+                    "listing_id": "commute-fit",
+                    "score": 0.2,
+                    "best_image_url": "https://example.com/2.jpg",
+                },
+            ]
+        },
+    )
+
+    ranked = rank_listings(
+        candidates=[
+            {
+                "listing_id": "image-heavy",
+                "title": "Stylish loft",
+                "description": "Far from transport.",
+                "distance_public_transport": 1600,
+                "features": [],
+            },
+            {
+                "listing_id": "commute-fit",
+                "title": "Apartment next to the station",
+                "description": "Quick commute.",
+                "distance_public_transport": 120,
+                "features": [],
+            },
+        ],
+        soft_facts={
+            "raw_query": "apartment with short commute",
+            "signals": {"public_transport": 1.0, "short_commute": 1.2},
+            "max_commute_minutes": 20,
+        },
+    )
+
+    assert [item.listing_id for item in ranked] == ["commute-fit", "image-heavy"]
+    assert ranked[0].score > ranked[1].score

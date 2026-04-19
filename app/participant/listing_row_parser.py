@@ -78,6 +78,14 @@ def _merge_optional_bools(*values: bool | None) -> bool | None:
     return False if saw_false else None
 
 
+def _bool_to_int(value: bool | None) -> int | None:
+    if value is True:
+        return 1
+    if value is False:
+        return 0
+    return None
+
+
 def _feature_list_flag(
     feature_keys: set[str],
     *,
@@ -258,6 +266,7 @@ def prepare_listing_row(row: dict[str, str]) -> tuple[Any, ...]:
     offer_type = _clean_text(row.get("offer_type"))
     offer_type = offer_type.upper() if offer_type else None
     orig_data = _parse_json_object(row.get("orig_data"))
+    text_features = _parse_json_object(row.get("text_features_json"))
     feature_values, enabled_features = _derive_features(row, orig_data)
     images = _parse_json_object(row.get("images"))
     location_address = _parse_json_object(row.get("location_address"))
@@ -291,24 +300,34 @@ def prepare_listing_row(row: dict[str, str]) -> tuple[Any, ...]:
         _parse_int(row.get("distance_kindergarten")),
         _parse_int(row.get("distance_school_1")),
         _parse_int(row.get("distance_school_2")),
-        1 if feature_values["balcony"] is True else 0 if feature_values["balcony"] is False else None,
-        1 if feature_values["elevator"] is True else 0 if feature_values["elevator"] is False else None,
-        1 if feature_values["parking"] is True else 0 if feature_values["parking"] is False else None,
-        1 if feature_values["garage"] is True else 0 if feature_values["garage"] is False else None,
-        1 if feature_values["fireplace"] is True else 0 if feature_values["fireplace"] is False else None,
-        1 if feature_values["child_friendly"] is True else 0 if feature_values["child_friendly"] is False else None,
-        1 if feature_values["pets_allowed"] is True else 0 if feature_values["pets_allowed"] is False else None,
-        1 if feature_values["temporary"] is True else 0 if feature_values["temporary"] is False else None,
-        1 if feature_values["new_build"] is True else 0 if feature_values["new_build"] is False else None,
-        1 if feature_values["wheelchair_accessible"] is True else 0 if feature_values["wheelchair_accessible"] is False else None,
-        1 if feature_values["private_laundry"] is True else 0 if feature_values["private_laundry"] is False else None,
-        1 if feature_values["minergie_certified"] is True else 0 if feature_values["minergie_certified"] is False else None,
+        _bool_to_int(feature_values["balcony"]),
+        _bool_to_int(feature_values["elevator"]),
+        _bool_to_int(feature_values["parking"]),
+        _bool_to_int(feature_values["garage"]),
+        _bool_to_int(feature_values["fireplace"]),
+        _bool_to_int(feature_values["child_friendly"]),
+        _bool_to_int(feature_values["pets_allowed"]),
+        _bool_to_int(feature_values["temporary"]),
+        _bool_to_int(feature_values["new_build"]),
+        _bool_to_int(feature_values["wheelchair_accessible"]),
+        _bool_to_int(feature_values["private_laundry"]),
+        _bool_to_int(feature_values["minergie_certified"]),
         json.dumps(enabled_features, ensure_ascii=True),
         offer_type,
         _clean_text(row.get("object_category")),
         _clean_text(row.get("object_type")),
         _clean_text(row.get("platform_url")),
         json.dumps(images, ensure_ascii=True),
+        _parse_float(row.get("floor_level") or row.get("prop_floor")),
+        _parse_int(row.get("year_built")),
+        _parse_int(row.get("renovation_year")),
+        _bool_to_int(_parse_bool(row.get("is_furnished") or row.get("prop_furnished"))),
+        _parse_float(row.get("price_per_sqm")),
+        _parse_float(row.get("price_vs_city_median")),
+        _clean_text(row.get("municipality")),
+        _parse_float(row.get("lake_distance_m")),
+        _bool_to_int(_parse_bool(row.get("is_urban"))),
+        json.dumps(text_features, ensure_ascii=True),
         json.dumps(location_address, ensure_ascii=True),
         json.dumps(orig_data, ensure_ascii=True),
         json.dumps(row, ensure_ascii=True),
