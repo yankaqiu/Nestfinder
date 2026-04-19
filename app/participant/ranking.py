@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 import json
 import re
 from datetime import date, timedelta
@@ -107,6 +108,30 @@ _TEXT_FALLBACK = 0.5
 def _text(c: dict) -> str:
     """Combined searchable text for a candidate."""
     return ((c.get("title") or "") + " " + (c.get("description") or "")).lower()
+
+
+def _location_text(c: dict) -> str:
+    """All location-relevant text for a candidate (address, district, etc.)."""
+    parts = [
+        c.get("title") or "",
+        c.get("description") or "",
+        c.get("street") or "",
+        c.get("city") or "",
+        c.get("district_name") or "",
+        c.get("municipality_name") or "",
+        c.get("nearest_train_name") or "",
+    ]
+    raw = c.get("raw_json")
+    if isinstance(raw, str):
+        parts.append(raw)
+    elif isinstance(raw, dict):
+        parts.append(json.dumps(raw))
+    addr = c.get("location_address_json")
+    if isinstance(addr, str):
+        parts.append(addr)
+    elif isinstance(addr, dict):
+        parts.append(json.dumps(addr))
+    return " ".join(parts).lower()
 
 
 def _has_feature(c: dict, feat: str) -> bool:
@@ -488,6 +513,70 @@ def _area_per_room(c: dict) -> float | None:
     return area / rooms
 
 
+LOCATION_BONUS_ADDRESS = 0.6
+LOCATION_BONUS_DESCRIPTION = 0.4
+FUZZY_THRESHOLD = 0.80
+
+_WORD_SPLIT_RE = re.compile(r"[a-zäöüàéèêïîôùûçß]{3,}", re.I)
+
+
+def _destination_tokens(destination: str) -> list[str]:
+    """Extract searchable tokens from the commute destination."""
+    dest = destination.strip().lower()
+    if not dest:
+        return []
+    tokens = [dest]
+    for word in _WORD_SPLIT_RE.findall(dest):
+        if word != dest:
+            tokens.append(word)
+    return tokens
+
+
+def _fuzzy_contains(tokens: list[str], text: str) -> float:
+    """Best fuzzy similarity between any destination token and any word in text.
+    Returns 0.0 if below FUZZY_THRESHOLD, otherwise the best ratio found."""
+    words = _WORD_SPLIT_RE.findall(text.lower())
+    if not words:
+        return 0.0
+    best = 0.0
+    for token in tokens:
+        for word in words:
+            if abs(len(token) - len(word)) > max(len(token), len(word)) * 0.3:
+                continue
+            ratio = SequenceMatcher(None, token, word).ratio()
+            if ratio > best:
+                best = ratio
+                if best >= 1.0:
+                    return 1.0
+    return best if best >= FUZZY_THRESHOLD else 0.0
+
+
+def _commute_destination_bonus(candidate: dict, destination: str) -> tuple[float, str | None]:
+    """Return (bonus, match_label) when listing text fuzzy-matches the commute destination."""
+    tokens = _destination_tokens(destination)
+    if not tokens:
+        return 0.0, None
+
+    street = (candidate.get("street") or "").lower()
+    city = (candidate.get("city") or "").lower()
+    district = (candidate.get("district_name") or "").lower()
+    municipality = (candidate.get("municipality_name") or "").lower()
+    address_fields = f"{street} {city} {district} {municipality}"
+
+    addr_sim = _fuzzy_contains(tokens, address_fields)
+    if addr_sim >= FUZZY_THRESHOLD:
+        bonus = LOCATION_BONUS_ADDRESS * (0.5 + 0.5 * addr_sim)
+        return bonus, f"near {destination}"
+
+    loc = _location_text(candidate)
+    text_sim = _fuzzy_contains(tokens, loc)
+    if text_sim >= FUZZY_THRESHOLD:
+        bonus = LOCATION_BONUS_DESCRIPTION * (0.5 + 0.5 * text_sim)
+        return bonus, f"mentions {destination}"
+
+    return 0.0, None
+
+
 def _area_gte(c: dict, min_sqm: float) -> bool:
     val = c.get("area")
     if val is None:
@@ -526,7 +615,9 @@ def _global_score_bonus(global_scores: dict[str, float]) -> float:
 def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str]]:
     """Score a candidate against extracted soft signals. Returns (score, matched_signals)."""
     signals = soft_facts.get("signals", {})
-    if not signals and not soft_facts.get("preferred_min_area_sqm"):
+    destination = soft_facts.get("commute_destination") or ""
+    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm")) or bool(destination)
+    if not has_soft:
         return 0.0, []
 
     score = 0.0
@@ -544,6 +635,12 @@ def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str
     if pref_area and _area_gte(candidate, pref_area):
         score += 0.3
         matched.append("area_pref")
+
+    if destination:
+        loc_bonus, loc_label = _commute_destination_bonus(candidate, destination)
+        if loc_bonus > 0 and loc_label:
+            score += loc_bonus
+            matched.append(loc_label)
 
     return score, matched
 
@@ -651,7 +748,8 @@ def _score_candidates(
     soft_facts: dict[str, Any],
 ) -> list[tuple[float, list[str], dict[str, Any]]]:
     signals = soft_facts.get("signals", {})
-    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm"))
+    destination = soft_facts.get("commute_destination") or ""
+    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm")) or bool(destination)
 
     scored: list[tuple[float, list[str], dict[str, Any]]] = []
     for candidate in candidates:
