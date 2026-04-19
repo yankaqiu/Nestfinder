@@ -58,11 +58,23 @@ class ListingData(BaseModel):
     object_type: str | None = None
 
 
+class GlobalScores(BaseModel):
+    global_score: float = 0.0
+    score_value: float = 0.0
+    score_amenity: float = 0.0
+    score_location: float = 0.0
+    score_building: float = 0.0
+    score_completeness: float = 0.0
+    score_freshness: float = 0.0
+
+
 class RankedListingResult(BaseModel):
     listing_id: str
     score: float
     reason: str
+    explanation: str | None = None
     listing: ListingData
+    global_scores: GlobalScores | None = None
 
 
 class ListingsResponse(BaseModel):

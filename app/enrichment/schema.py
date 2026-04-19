@@ -29,6 +29,15 @@ ENRICHMENT_COLUMNS: list[tuple[str, str]] = [
 
     # --- Neighborhood metadata (Step 6) ---
     ("is_urban", "INTEGER"),
+
+    # --- Global quality score (Step 8) ---
+    ("global_score", "REAL"),
+    ("score_value", "REAL"),
+    ("score_amenity", "REAL"),
+    ("score_location", "REAL"),
+    ("score_building", "REAL"),
+    ("score_completeness", "REAL"),
+    ("score_freshness", "REAL"),
 ]
 
 

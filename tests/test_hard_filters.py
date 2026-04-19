@@ -2,6 +2,8 @@ import sqlite3
 from pathlib import Path
 
 from app.core.hard_filters import HardFilterParams, search_listings
+from app.db import get_connection
+from app.enrichment.schema import add_enrichment_columns
 from app.harness.bootstrap import bootstrap_database
 
 
@@ -10,6 +12,8 @@ def build_database(tmp_path: Path) -> Path:
     raw_data_dir = repo_root / "raw_data"
     db_path = tmp_path / "listings.db"
     bootstrap_database(db_path=db_path, raw_data_dir=raw_data_dir)
+    with get_connection(db_path) as conn:
+        add_enrichment_columns(conn)
     return db_path
 
 

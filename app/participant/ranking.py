@@ -5,6 +5,7 @@ import re
 from datetime import date, timedelta
 from typing import Any
 
+from app.enrichment.global_score import compute_global_score, explain_score
 from app.models.schemas import ListingData, RankedListingResult
 
 # ---------------------------------------------------------------------------
@@ -306,16 +307,47 @@ def _area_gte(c: dict, min_sqm: float) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Global score tiebreaker weight — controls how much the global quality
+# score influences the final ranking relative to soft-signal matches.
+# At 0.3, a perfect global_score (1.0) adds 0.3 to the total, while a
+# single soft-signal match typically contributes 0.5–1.0.
+# ---------------------------------------------------------------------------
+GLOBAL_SCORE_WEIGHT = 0.3
+
+
+# ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
 
-def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str]]:
-    """Score a candidate against extracted soft signals. Returns (score, matched_signals)."""
+def _get_global_score(candidate: dict) -> dict[str, float]:
+    """Get pre-computed global score from DB or compute on-the-fly."""
+    precomputed = candidate.get("global_score")
+    if precomputed is not None:
+        return {
+            "global_score": float(precomputed),
+            "score_value": float(candidate.get("score_value") or 0),
+            "score_amenity": float(candidate.get("score_amenity") or 0),
+            "score_location": float(candidate.get("score_location") or 0),
+            "score_building": float(candidate.get("score_building") or 0),
+            "score_completeness": float(candidate.get("score_completeness") or 0),
+            "score_freshness": float(candidate.get("score_freshness") or 0),
+        }
+    return compute_global_score(candidate)
+
+
+def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str], dict[str, float]]:
+    """Score a candidate against extracted soft signals.
+
+    Returns (total_score, matched_signals, global_scores_dict).
+    """
+    gs = _get_global_score(candidate)
+    base = gs["global_score"] * GLOBAL_SCORE_WEIGHT
+
     signals = soft_facts.get("signals", {})
     if not signals and not soft_facts.get("preferred_min_area_sqm"):
-        return 0.0, []
+        return round(base, 4), [], gs
 
-    score = 0.0
+    score = base
     matched: list[str] = []
 
     for signal_name, weight in signals.items():
@@ -329,7 +361,7 @@ def _score_candidate(candidate: dict, soft_facts: dict) -> tuple[float, list[str
         score += 0.3
         matched.append("area_pref")
 
-    return score, matched
+    return score, matched, gs
 
 
 # ---------------------------------------------------------------------------
@@ -340,28 +372,23 @@ def rank_listings(
     candidates: list[dict[str, Any]],
     soft_facts: dict[str, Any],
 ) -> list[RankedListingResult]:
-    signals = soft_facts.get("signals", {})
-    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm"))
-
-    scored: list[tuple[float, list[str], dict[str, Any]]] = []
+    scored: list[tuple[float, list[str], dict[str, float], dict[str, Any]]] = []
     for candidate in candidates:
-        if has_soft:
-            s, m = _score_candidate(candidate, soft_facts)
-            scored.append((s, m, candidate))
-        else:
-            scored.append((0.0, [], candidate))
+        s, m, gs = _score_candidate(candidate, soft_facts)
+        scored.append((s, m, gs, candidate))
 
-    if has_soft:
-        scored.sort(key=lambda x: -x[0])
+    scored.sort(key=lambda x: -x[0])
 
     return [
         RankedListingResult(
             listing_id=str(cand["listing_id"]),
             score=round(sc, 2),
-            reason=", ".join(matched) if matched else "hard filters only",
+            reason=", ".join(matched) if matched else "global score only",
+            explanation=explain_score(gs, cand),
             listing=_to_listing_data(cand),
+            global_scores=gs,
         )
-        for sc, matched, cand in scored
+        for sc, matched, gs, cand in scored
     ]
 
 

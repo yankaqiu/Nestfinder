@@ -140,7 +140,14 @@ def search_listings(db_path: Path, filters: HardFilterParams) -> list[dict[str, 
             municipality,
             lake_distance_m,
             is_urban,
-            text_features_json
+            text_features_json,
+            global_score,
+            score_value,
+            score_amenity,
+            score_location,
+            score_building,
+            score_completeness,
+            score_freshness
         FROM listings
     """
 

@@ -25,6 +25,7 @@ from app.core.hard_filters import search_listings
 from app.db import get_connection
 from app.harness.search_service import to_hard_filter_params
 from app.participant.hard_fact_extraction import extract_hard_facts
+from app.enrichment.global_score import explain_score
 from app.participant.ranking import _score_candidate, _SIGNAL_MATCHERS
 from app.participant.soft_fact_extraction import extract_soft_facts
 from app.participant.soft_filtering import filter_soft_facts
@@ -175,20 +176,20 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
     t0 = time.perf_counter()
     scored_results = []
     for c in after_soft:
-        score, matched = _score_candidate(c, soft_facts)
-        scored_results.append((score, matched, c))
+        score, matched, gs = _score_candidate(c, soft_facts)
+        scored_results.append((score, matched, gs, c))
 
-    has_soft = bool(signals) or bool(soft_facts.get("preferred_min_area_sqm"))
-    if has_soft:
-        scored_results.sort(key=lambda x: -x[0])
+    scored_results.sort(key=lambda x: -x[0])
 
     top_n = scored_results[:req.top_n]
     ranked_output = []
-    for rank, (score, matched, c) in enumerate(top_n, 1):
+    for rank, (score, matched, gs, c) in enumerate(top_n, 1):
         entry = _candidate_summary(c)
         entry["rank"] = rank
         entry["score"] = round(score, 3)
         entry["matched_signals"] = matched
+        entry["global_scores"] = {k: round(v, 3) for k, v in gs.items()}
+        entry["explanation"] = explain_score(gs, c)
         breakdown = {}
         for sig_name in matched:
             if sig_name == "area_pref":
@@ -199,7 +200,7 @@ def trace_pipeline(req: TraceRequest) -> dict[str, Any]:
         ranked_output.append(entry)
 
     score_distribution: dict[str, int] = {}
-    for sc, _, _ in scored_results:
+    for sc, _, _, _ in scored_results:
         bucket = str(round(sc, 1))
         score_distribution[bucket] = score_distribution.get(bucket, 0) + 1
 
@@ -490,9 +491,35 @@ function renderRank(s){
     if(r.matched_signals&&r.matched_signals.length){const bd=r.signal_breakdown||{};sh=r.matched_signals.map(s=>`<span class="match-tag">${s}${bd[s]!=null?`<span class="mw">+${bd[s]}</span>`:''}</span>`).join('');}
     else sh='<span style="color:var(--muted);font-size:.75rem">—</span>';
     const enrich=enrichBlock(r);
-    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}"><div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div>${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
+    const explainHtml=r.explanation?`<div style="margin-top:8px;padding:8px 10px;background:rgba(80,200,120,.07);border:1px solid rgba(80,200,120,.2);border-radius:6px;font-size:.82rem;line-height:1.5;color:#c8e6c9"><span style="font-size:.68rem;color:rgba(80,200,120,.8);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:3px">Why this score</span>${esc(r.explanation)}</div>`:'';
+    const gsHtml=globalScoreBlock(r.global_scores);
+    h+=`<tr><td>${r.rank}</td><td class="score-cell ${cls}">${sc.toFixed(2)}</td><td>${esc(r.city||'?')}</td><td>${r.rooms??'—'}</td><td>${r.price!=null?r.price.toLocaleString():'—'}</td><td>${r.area!=null?r.area+' m²':'—'}</td><td>${sh}</td><td>${esc((r.title||'').substring(0,60))}<button class="expand-btn" onclick="document.getElementById('${did}').classList.toggle('open')">details</button><div class="listing-detail" id="${did}">${explainHtml}${gsHtml}<div class="desc">${esc(r.description||'No description')}</div><div class="meta-row">${r.street?`<div class="meta-item">Street: <span>${esc(r.street)}</span></div>`:''}${r.postal_code?`<div class="meta-item">PLZ: <span>${r.postal_code}</span></div>`:''}${r.canton?`<div class="meta-item">Canton: <span>${r.canton}</span></div>`:''}${r.available_from?`<div class="meta-item">Available: <span>${r.available_from}</span></div>`:''}${r.offer_type?`<div class="meta-item">Type: <span>${r.offer_type}</span></div>`:''}${r.object_category?`<div class="meta-item">Category: <span>${r.object_category}</span></div>`:''}</div>${enrich}${r.features&&r.features.length?`<div style="margin-top:6px"><span style="color:var(--muted)">Features:</span> ${r.features.map(f=>`<span class="match-tag">${esc(f)}</span>`).join(' ')}</div>`:''}${r.distance_public_transport!=null?`<div style="margin-top:4px;color:var(--muted);font-size:.78rem">Public transport: ${r.distance_public_transport}m</div>`:''}${r.original_url?`<div style="margin-top:4px"><a href="${r.original_url}" target="_blank" style="color:var(--accent);font-size:.78rem">View original →</a></div>`:''}</div></td></tr>`;
   }
   h+='</tbody></table></div>';
+  return h;
+}
+function globalScoreBlock(gs){
+  if(!gs) return '';
+  const g=gs.global_score!=null?gs.global_score:0;
+  const dims=[
+    ['Value',gs.score_value,0.25,'#66bb6a'],
+    ['Amenity',gs.score_amenity,0.20,'#42a5f5'],
+    ['Location',gs.score_location,0.20,'#ab47bc'],
+    ['Building',gs.score_building,0.15,'#ffa726'],
+    ['Complete',gs.score_completeness,0.10,'#26c6da'],
+    ['Fresh',gs.score_freshness,0.10,'#ef5350'],
+  ];
+  let h=`<div style="margin-top:6px;padding:8px 10px;background:rgba(108,140,255,.06);border:1px solid rgba(108,140,255,.15);border-radius:6px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em">Global Score</span><span style="font-size:.95rem;font-weight:700;color:${g>=0.6?'var(--green)':g>=0.4?'var(--orange)':'var(--red)'}">${g.toFixed(3)}</span></div><div style="display:flex;gap:4px;height:10px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.05)">`;
+  for(const[name,val,weight,col]of dims){
+    const w=(val*weight/1)*100;
+    h+=`<div title="${name}: ${(val*100).toFixed(0)}% × ${(weight*100).toFixed(0)}%w" style="width:${w.toFixed(1)}%;background:${col};min-width:1px"></div>`;
+  }
+  h+=`</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">`;
+  for(const[name,val,weight,col]of dims){
+    const pct=(val*100).toFixed(0);
+    h+=`<span style="font-size:.7rem;color:var(--muted);white-space:nowrap"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-right:2px;vertical-align:middle"></span>${name} <span style="color:var(--text)">${pct}%</span><span style="opacity:.5">×${(weight*100).toFixed(0)}%</span></span>`;
+  }
+  h+=`</div></div>`;
   return h;
 }
 function enrichBlock(r){

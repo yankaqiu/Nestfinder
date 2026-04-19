@@ -65,6 +65,13 @@ def step_neighborhood(conn: sqlite3.Connection) -> None:
     logger.info("Neighborhood complete: %s", stats)
 
 
+def step_global_score(conn: sqlite3.Connection) -> None:
+    """Compute composite global quality score for each listing."""
+    from app.enrichment.global_score import enrich_global_score
+    stats = enrich_global_score(conn)
+    logger.info("Global score complete: %s", stats)
+
+
 def step_report(conn: sqlite3.Connection) -> None:
     """Print a coverage report of enrichment columns."""
     enrichment_cols = [
@@ -72,6 +79,7 @@ def step_report(conn: sqlite3.Connection) -> None:
         "price_per_sqm", "price_vs_city_median",
         "municipality", "bfs_number", "lake_distance_m", "is_urban",
         "text_features_json",
+        "global_score",
     ]
     total = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
     print(f"\n{'='*60}")
@@ -96,6 +104,28 @@ def step_report(conn: sqlite3.Connection) -> None:
     print(f"  Canton coverage: {canton_count}/{total} ({canton_count/total*100:.1f}%)")
     print()
 
+    # Global score distribution
+    try:
+        gs_stats = conn.execute(
+            "SELECT COUNT(*), AVG(global_score), MIN(global_score), MAX(global_score) "
+            "FROM listings WHERE global_score IS NOT NULL"
+        ).fetchone()
+        if gs_stats and gs_stats[0] > 0:
+            print(f"  Global Score Distribution ({gs_stats[0]} scored):")
+            print(f"    Avg:  {gs_stats[1]:.3f}")
+            print(f"    Min:  {gs_stats[2]:.3f}")
+            print(f"    Max:  {gs_stats[3]:.3f}")
+            for sub in ["score_value", "score_amenity", "score_location",
+                        "score_building", "score_completeness", "score_freshness"]:
+                row = conn.execute(
+                    f"SELECT AVG({sub}) FROM listings WHERE {sub} IS NOT NULL"
+                ).fetchone()
+                if row and row[0] is not None:
+                    print(f"    {sub:<25} avg={row[0]:.3f}")
+            print()
+    except sqlite3.OperationalError:
+        pass
+
 
 STEPS = {
     "schema": step_schema,
@@ -103,6 +133,7 @@ STEPS = {
     "geospatial": step_geospatial,
     "text_extract": step_text_extract,
     "neighborhood": step_neighborhood,
+    "global_score": step_global_score,
     "report": step_report,
 }
 
@@ -125,7 +156,7 @@ def main() -> int:
     conn = get_connection(args.db)
 
     if args.step == "all":
-        steps_to_run = ["schema", "backfill", "neighborhood", "report"]
+        steps_to_run = ["schema", "backfill", "neighborhood", "global_score", "report"]
     else:
         steps_to_run = [args.step]
 
